@@ -46,6 +46,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Aspects\Advices\SetPropertyAdvice.cs" />
     <Compile Include="Aspects\NoChangeNotificationAttribute.cs" />
     <Compile Include="Aspects\NotifyPropertyChangedAttribute.cs" />
     <Compile Include="Aspects\SafeWhenDisposedAttribute.cs" />

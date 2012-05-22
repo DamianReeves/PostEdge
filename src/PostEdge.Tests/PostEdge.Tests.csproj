@@ -68,6 +68,12 @@
       <Name>PostEdge</Name>
     </ProjectReference>
   </ItemGroup>
+  <PropertyGroup>
+    <PostSharpSearchPath>
+      $(PostSharpSearchPath);
+      ..\PostEdge.Weaver\bin\$(Configuration)
+    </PostSharpSearchPath>
+  </PropertyGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\PostSharp.2.1.6.15\tools\PostSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\nuget.targets" />
