@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
+using PostEdge.Aspects.Advices;
 using PostSharp.Aspects;
 using PostSharp.Aspects.Advices;
 using PostSharp.Aspects.Configuration;
@@ -14,10 +15,11 @@ using PostSharp.Reflection;
 namespace PostEdge.Aspects {
     [Serializable]
     [IntroduceInterface(typeof(INotifyPropertyChanged), OverrideAction = InterfaceOverrideAction.Ignore)]
+    [EnhancePropertySetter]
     [MulticastAttributeUsage(MulticastTargets.Class, Inheritance = MulticastInheritance.Strict)]
     [AspectConfiguration(SerializerType = typeof(MsilAspectSerializer))]
     [ProvideAspectRole(StandardRoles.DataBinding)]
-    public sealed class NotifyPropertyChangedAttribute : InstanceLevelAspect, INotifyPropertyChanged {
+    public sealed class NotifyPropertyChangedAttribute : InstanceLevelAspect, INotifyPropertyChangedAspect, INotifyPropertyChanged {
 
         [ImportMember("OnPropertyChanged", IsRequired = false, Order = ImportMemberOrder.AfterIntroductions)]
         public Action<string> OnPropertyChangedMethod;

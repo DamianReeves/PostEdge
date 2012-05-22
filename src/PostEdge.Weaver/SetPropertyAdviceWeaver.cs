@@ -5,7 +5,7 @@ using PostSharp.Sdk.CodeModel;
 namespace PostEdge.Weaver {
     internal class SetPropertyAdviceWeaver: GroupingAdviceWeaver {
         protected override AdviceGroup CreateAdviceGroup() {
-            throw new System.NotImplementedException();
+            return new AdviceGroupInternal(this);
         }
 
         private class AdviceGroupInternal: PointcutAwareAdviceGroup {

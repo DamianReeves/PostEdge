@@ -46,7 +46,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Aspects\Advices\EnhancePropertySetterAttribute.cs" />
     <Compile Include="Aspects\Advices\SetPropertyAdvice.cs" />
+    <Compile Include="Aspects\INotifyPropertyChangedAspect.cs" />
     <Compile Include="Aspects\NoChangeNotificationAttribute.cs" />
     <Compile Include="Aspects\NotifyPropertyChangedAttribute.cs" />
     <Compile Include="Aspects\SafeWhenDisposedAttribute.cs" />

@@ -6,6 +6,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PostEdge.Weaver", "PostEdge.Weaver\PostEdge.Weaver.csproj", "{5DC96570-BCB3-475F-A280-7D8F8247DF1B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PostEdge.Tests", "PostEdge.Tests\PostEdge.Tests.csproj", "{4931D8EB-A4E3-40D9-B802-AA4ACA82F7C3}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5DC96570-BCB3-475F-A280-7D8F8247DF1B} = {5DC96570-BCB3-475F-A280-7D8F8247DF1B}
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{017F1C43-BF01-4D0C-B086-55DFB366D3D9}"
 	ProjectSection(SolutionItems) = preProject

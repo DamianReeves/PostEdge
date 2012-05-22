@@ -49,7 +49,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="PostSharpPlugIn.cs" />
+    <Compile Include="EnhancePropertySetterAdviceWeaver.cs" />
+    <Compile Include="EnhancePropertySetterTransformation.cs" />
+    <Compile Include="Extensions\InstructionWriterExtensions.cs" />
+    <Compile Include="Extensions\PostSharpExtensions.cs" />
+    <Compile Include="PostEdgePlugIn.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SetPropertyAdviceWeaver.cs" />
   </ItemGroup>
