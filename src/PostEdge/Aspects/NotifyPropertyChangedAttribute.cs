@@ -42,7 +42,7 @@ namespace PostEdge.Aspects {
                    select property;
         }
 
-        //[OnLocationSetValueAdvice, MethodPointcut("SelectProperties")]
+        [OnLocationSetValueAdvice, MethodPointcut("SelectProperties")]
         public void OnPropertySet(LocationInterceptionArgs args) {
             // Don't go further if the new value is equal to the old one.
             // (Possibly use object.Equals here).

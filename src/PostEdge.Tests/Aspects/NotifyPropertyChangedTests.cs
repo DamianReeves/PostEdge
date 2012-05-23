@@ -32,6 +32,9 @@ namespace PostEdge.Aspects {
                 get { return _flag; }
                 set { _flag = value; }
             }
+
+            [NoChangeNotification]
+            public bool? NoChangeNotification { get; set; }
         }
 
         [NotifyPropertyChanged]
@@ -44,6 +47,9 @@ namespace PostEdge.Aspects {
                 get { return _flag; }
                 set { _flag = value; }
             }
+
+            [NoChangeNotification]
+            public bool? NoChangeNotification { get; set; }
         }
     }
 }
