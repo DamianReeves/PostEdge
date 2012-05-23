@@ -25,15 +25,25 @@ namespace PostEdge.Aspects {
         }
         [NotifyPropertyChanged]
         private class MockNotifyingObject {
+            private bool _flag = true;
             public int Id { get; set; }
-            public string Name { get; set; }
+            public string Name { get; set; }            
+            public bool Flag {
+                get { return _flag; }
+                set { _flag = value; }
+            }
         }
 
         [NotifyPropertyChanged]
         public class MockNotifyingObjectWithINPC:INotifyPropertyChanged {
             public event PropertyChangedEventHandler PropertyChanged;
+            private bool _flag = true;
             public int Id { get; set; }
-            public string Name { get; set; }            
+            public string Name { get; set; }
+            public bool Flag {
+                get { return _flag; }
+                set { _flag = value; }
+            }
         }
     }
 }

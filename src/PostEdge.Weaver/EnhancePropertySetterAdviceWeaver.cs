@@ -51,6 +51,7 @@ namespace PostEdge.Weaver {
                 var properties =
                     from property in typeDef.Properties
                     where property.CanWrite
+                          && property.CanRead
                           && !property.IsStatic
                           && property.DeclaringType != null
                           && property.DeclaringType.Equals(typeDef)

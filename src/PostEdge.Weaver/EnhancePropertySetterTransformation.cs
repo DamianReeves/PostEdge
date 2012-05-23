@@ -1,3 +1,4 @@
+#define NoVisitor
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -7,6 +8,7 @@ using PostSharp.Aspects.Dependencies;
 using PostSharp.Sdk.AspectInfrastructure;
 using PostSharp.Sdk.AspectInfrastructure.Dependencies;
 using PostSharp.Sdk.AspectWeaver;
+using PostSharp.Sdk.AspectWeaver.Dependencies;
 using PostSharp.Sdk.AspectWeaver.Transformations;
 using PostSharp.Sdk.CodeModel;
 using PostSharp.Sdk.CodeWeaver;
@@ -31,8 +33,10 @@ namespace PostEdge.Weaver {
             this.Dependencies.Add(
                 new AspectDependency(
                     AspectDependencyAction.Order, 
-                    AspectDependencyPosition.After,
-                    new AspectEffectDependencyCondition("ChangeControlFlow")
+                    AspectDependencyPosition.Before,
+                    new OrDependencyCondition(
+                        new AspectEffectDependencyCondition(StandardEffects.ChangeControlFlow)
+                    )                    
                 )
             );
         }
@@ -89,8 +93,9 @@ namespace PostEdge.Weaver {
 
             public override void Implement(MethodBodyTransformationContext context) { 
                 this.AddSymJoinPoint(context);
-                //var writer = context.InstructionBlock.
-                //context.InstructionBlock.MethodBody.Visit(new IMethodBodyVisitor[] { new Visitor(this, context) });
+                //var writer = context.InstructionBlock.                
+#if NoVisitor
+                var reader = context.InstructionBlock.MethodBody.CreateInstructionReader(true);
                 var rootBlock = context.InstructionBlock.MethodBody.RootInstructionBlock;
                 if(rootBlock == null) return;
                 rootBlock.MethodBody.InitLocalVariables = true;
@@ -105,7 +110,7 @@ namespace PostEdge.Weaver {
                     //
 
                     oldValueVariable = rootBlock.DefineLocalVariable(property.PropertyType, string.Empty);
-                    
+                    //var reader = new InstructionReader(rootBlock.MethodBody, true);
                     var sequence = originalMethodStart.ParentInstructionBlock.AddInstructionSequence(
                         null, NodePosition.Before, originalMethodStart);
                     var writer = new InstructionWriter();
@@ -123,13 +128,16 @@ namespace PostEdge.Weaver {
                     writer.Leave_IfTrue(context.LeaveBranchTarget);
                     writer.DetachInstructionSequence();
                 }
-            }  
-          
-            public bool ShouldCheckEquality() {
+#else
+                context.InstructionBlock.MethodBody.Visit(new IMethodBodyVisitor[] { new Visitor(this, context) });
+#endif
+            }
+
+            private bool ShouldCheckEquality() {
                 return _transformation._tranformationOptions.Any(x => x.CheckEquality);
             }
-            
-            private sealed class Visitor: IMethodBodyVisitor {
+
+            private sealed class Visitor : IMethodBodyVisitor {
                 private readonly Instance _instance;
                 private readonly MethodBodyTransformationContext _context;
                 public TransformationAssets Assets { get { return _instance.Assets; } }
@@ -139,8 +147,8 @@ namespace PostEdge.Weaver {
                 }
                 public void EnterInstructionBlock(InstructionBlock instructionBlock, InstructionBlockExceptionHandlingKind exceptionHandlingKind) {
                     instructionBlock.MethodBody.InitLocalVariables = true;
-                    var originalMethodStart = instructionBlock.FindFirstInstructionSequence();   
-                    if(originalMethodStart == null) return;
+                    var originalMethodStart = instructionBlock.FindFirstInstructionSequence();
+                    if (originalMethodStart == null) return;
                     LocalVariableSymbol oldValueVariable;
                     var property = _instance.Property;
                     if (_instance.ShouldCheckEquality()) {
@@ -149,13 +157,13 @@ namespace PostEdge.Weaver {
                         //    return;
                         //
 
-                        oldValueVariable = instructionBlock.DefineLocalVariable(property.PropertyType, string.Empty);                        
+                        oldValueVariable = instructionBlock.DefineLocalVariable(property.PropertyType, string.Empty);
                         var sequence = instructionBlock.AddInstructionSequence(null, NodePosition.Before, originalMethodStart);
                         var writer = new InstructionWriter();
                         writer.AttachInstructionSequence(sequence);
                         writer.Box_SetterValueIfNeeded(property);
                         writer.AssignValue_LocalVariable(oldValueVariable,
-                            ()=>writer.Get_PropertyValue(property));
+                            () => writer.Get_PropertyValue(property));
                         writer.Box_LocalVariableIfNeeded(oldValueVariable);
                         var isPrimitive = property.PropertyType.IsPrimitive();
                         if (isPrimitive) {
@@ -169,17 +177,20 @@ namespace PostEdge.Weaver {
                 }
 
                 public void LeaveInstructionBlock(InstructionBlock instructionBlock, InstructionBlockExceptionHandlingKind exceptionHandlingKind) {
-                    
+
                 }
 
-                public void EnterInstructionSequence(InstructionSequence instructionSequence) {}
-                public void LeaveInstructionSequence(InstructionSequence instructionSequence) {}
+                public void EnterInstructionSequence(InstructionSequence instructionSequence) { }
+                public void LeaveInstructionSequence(InstructionSequence instructionSequence) { }
 
-                public void EnterExceptionHandler(ExceptionHandler exceptionHandler) {}
+                public void EnterExceptionHandler(ExceptionHandler exceptionHandler) { }
 
-                public void LeaveExceptionHandler(ExceptionHandler exceptionHandler) {}
+                public void LeaveExceptionHandler(ExceptionHandler exceptionHandler) { }
 
-                public void VisitInstruction(InstructionReader instructionReader) {}
+                public void VisitInstruction(InstructionReader instructionReader) {
+                    //var methodBody = instructionReader.CurrentInstructionSequence.MethodBody;
+                    //methodBody.
+                }
             }
         }
     }
