@@ -29,22 +29,25 @@ namespace PostEdge.Weaver {
         }
 
         private sealed class MyAdviceGroup : AdviceGroup {
-            public MyAdviceGroup(AdviceWeaver parent) : base(parent) {
-                var annotations = this.Annotations;
-            }
+            private EnhancePropertySetterTransformation _transformation;
+            public MyAdviceGroup(AdviceWeaver parent) : base(parent) {}
+
             protected override void Initialize() {
                 base.Initialize();
-                var annotations = this.Annotations;
-            }
-            public override void ProvideTransformations(AspectWeaverInstance aspectWeaverInstance, AspectWeaverTransformationAdder adder) {
-                //adder.AddNullTransformation(aspectWeaverInstance.TargetElement, "Enhance property setters", aspectWeaverInstance.Dependencies);
-                AddPropertyTransformations(aspectWeaverInstance, adder);
+                //At this point Annotations is populated
+                var master = this.MasterAnnotation;
+                if(Annotations.Count <= 0) return;
+                _transformation = new EnhancePropertySetterTransformation(this.AdviceWeaver.AspectWeaver,
+                    this.Annotations.Select(x=>x.Value), this.Annotations[0].TargetElement);
+                this.PrepareTransformation(_transformation);
             }
 
-            private void AddPropertyTransformations(AspectWeaverInstance aspectWeaverInstance, AspectWeaverTransformationAdder adder) {
+            public override void ProvideTransformations(AspectWeaverInstance aspectWeaverInstance, AspectWeaverTransformationAdder adder) {
+                if (_transformation == null) return;
                 var type = aspectWeaverInstance.TargetElement as IType;
-                if(type == null) return;
+                if (type == null) return;
                 var typeDef = type.GetTypeDefinition();
+                //Get all non-static properties declared on this type
                 var properties =
                     from property in typeDef.Properties
                     where property.CanWrite
@@ -53,7 +56,7 @@ namespace PostEdge.Weaver {
                           && property.DeclaringType.Equals(typeDef)
                     select property;
                 foreach (var property in properties) {
-                    //adder.Add(property, );
+                    adder.Add(property.Setter, _transformation.CreateInstance(property, aspectWeaverInstance));
                 }
             }
         }

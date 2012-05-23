@@ -15,7 +15,7 @@ using PostSharp.Reflection;
 namespace PostEdge.Aspects {
     [Serializable]
     [IntroduceInterface(typeof(INotifyPropertyChanged), OverrideAction = InterfaceOverrideAction.Ignore)]
-    [EnhancePropertySetter]
+    [EnhancePropertySetter(CheckEquality = true)]
     [MulticastAttributeUsage(MulticastTargets.Class, Inheritance = MulticastInheritance.Strict)]
     [AspectConfiguration(SerializerType = typeof(MsilAspectSerializer))]
     [ProvideAspectRole(StandardRoles.DataBinding)]
