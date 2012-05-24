@@ -6,6 +6,8 @@ namespace PostEdge.Aspects.Advices {
     [Serializable]
     public sealed class EnhancePropertySetterAttribute: Advice {
         private bool _checkEquality = true;
+        private bool _invokePropertyChanged = true;
+
         private string _propertyChangedMethodNames = "OnPropertyChanged;PropertyHasChanged;RaisePropertyChanged";
         private Type _propertyChangedMethodSignature = typeof(Action<string>);
 
@@ -15,6 +17,11 @@ namespace PostEdge.Aspects.Advices {
         }
 
         public bool InvokePropertyChanging { get; set; }
+
+        public bool InvokePropertyChanged {
+            get { return _invokePropertyChanged; }
+            set { _invokePropertyChanged = value; }
+        }
 
         public string PropertyChangingMethodNames { get; set; }
 

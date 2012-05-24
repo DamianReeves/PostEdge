@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using PostEdge.Weaver.Transformations;
 using PostSharp.Aspects.Configuration;
 using PostSharp.Extensibility;
 using PostSharp.Sdk.AspectWeaver;
@@ -21,7 +22,7 @@ namespace PostEdge.Weaver {
         public override bool ValidateAspectInstance(AspectInstanceInfo aspectInstanceInfo) {
             if (aspectInstanceInfo.TargetElement.GetTokenType() != TokenType.Property) {
                 Message.Write(aspectInstanceInfo.TargetElement, SeverityType.Error, "PE-GPE-0001"
-                    , "The Guard Property aspect is not allowed on this type target.");
+                    , "The Guard Property aspect is not allowed on this type of target.");
                 return false;
             }
             return base.ValidateAspectInstance(aspectInstanceInfo);

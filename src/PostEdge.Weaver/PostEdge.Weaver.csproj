@@ -50,12 +50,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EnhancePropertySetterAdviceWeaver.cs" />
-    <Compile Include="GuardPropertyEqualityTransformation.cs" />
+    <Compile Include="Transformations\GuardPropertyEqualityTransformation.cs" />
     <Compile Include="Extensions\InstructionWriterExtensions.cs" />
     <Compile Include="Extensions\PostSharpExtensions.cs" />
     <Compile Include="GuardPropertyEqualityAspectWeaver.cs" />
     <Compile Include="PostEdgePlugIn.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Transformations\RaisePropertyChangedMethodBodyTransformation.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PostEdge\PostEdge.csproj">

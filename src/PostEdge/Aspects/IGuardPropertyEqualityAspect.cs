@@ -6,7 +6,7 @@ using PostSharp.Aspects.Serialization;
 using PostSharp.Extensibility;
 
 namespace PostEdge.Aspects {
-    public interface IGuardPropertyEqualityAspect: IPostEdgeAspect {
+    public interface IGuardPropertyEqualityAspect: IPropertyAspect {
     }
 
     [MulticastAttributeUsage(MulticastTargets.Property)]
@@ -17,7 +17,11 @@ namespace PostEdge.Aspects {
     public sealed class GuardPropertyEqualityAspect : Aspect, IGuardPropertyEqualityAspect {        
     }
 
-    public static class PostEdgeAspectRoles {
+    public interface IPropertyChangingAspect: IPropertyAspect {
+        
+    }
+
+    public interface IPropertyChangedAspect: IPropertyAspect {
         
     }
 }

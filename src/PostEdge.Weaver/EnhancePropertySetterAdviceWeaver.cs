@@ -1,7 +1,9 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using PostEdge.Aspects.Advices;
 using PostEdge.Weaver.Extensions;
+using PostEdge.Weaver.Transformations;
 using PostSharp.Sdk.AspectWeaver;
 using PostSharp.Sdk.CodeModel;
 
@@ -31,29 +33,29 @@ namespace PostEdge.Weaver {
 
         private sealed class MyAdviceGroup : AdviceGroup {
             private GuardPropertyEqualityTransformation _guardEqualityTransformation;
+            private RaisePropertyChangedMethodBodyTransformation _raisePropertyChangedMethodBodyTransformation;
+            private TransformationOptions _transformationOptions;
             public MyAdviceGroup(AdviceWeaver parent) : base(parent) {}
 
             protected override void Initialize() {
                 base.Initialize();
                 //At this point Annotations is populated
-                if(Annotations.Count <= 0) return;
-                if (ShouldCheckEquality()) {
-                    _guardEqualityTransformation = new GuardPropertyEqualityTransformation(AdviceWeaver.AspectWeaver);
+                _transformationOptions = GetTransformationOptions();
+                if (_transformationOptions == null) return;
+                if (_transformationOptions.InvokePropertyChanged) {
+                    _raisePropertyChangedMethodBodyTransformation = 
+                        new RaisePropertyChangedMethodBodyTransformation(AdviceWeaver.AspectWeaver);
+                    PrepareTransformation(_raisePropertyChangedMethodBodyTransformation);
+                }
+                if (_transformationOptions.CheckEquality) {
+                    _guardEqualityTransformation = 
+                        new GuardPropertyEqualityTransformation(AdviceWeaver.AspectWeaver);
+                    PrepareTransformation(_guardEqualityTransformation);
                 }                
-                PrepareTransformation(_guardEqualityTransformation);
-            }
-
-            private bool ShouldCheckEquality() {
-                var results = 
-                    from attrib in Annotations.Select(x => x.Value)
-                    select new {
-                        CheckEquality = attrib.NamedArguments.GetRuntimeValue<bool>("CheckEquality")
-                    };
-                return results.Any(x=>x.CheckEquality);
             }
 
             public override void ProvideTransformations(AspectWeaverInstance aspectWeaverInstance, AspectWeaverTransformationAdder adder) {
-                if (_guardEqualityTransformation == null) return;
+                if (_transformationOptions == null || !_transformationOptions.ShouldTransform()) return;
                 var type = aspectWeaverInstance.TargetElement as IType;
                 if (type == null) return;
                 var typeDef = type.GetTypeDefinition();
@@ -66,8 +68,35 @@ namespace PostEdge.Weaver {
                           && property.DeclaringType != null
                           && property.DeclaringType.Equals(typeDef)
                     select property;
-                foreach (var property in properties) {
-                    adder.Add(property.Setter, _guardEqualityTransformation.CreateInstance(property, aspectWeaverInstance));
+                foreach (var property in properties) {                    
+                    if (_transformationOptions.InvokePropertyChanged) {
+                        //TODO: If NoChangeNotification attribute is specified then skip this transformation
+                        adder.Add(property.Setter,
+                            _raisePropertyChangedMethodBodyTransformation.CreateInstance(property, aspectWeaverInstance));
+                    }
+                    if (_transformationOptions.CheckEquality) {
+                        adder.Add(property.Setter,
+                                  _guardEqualityTransformation.CreateInstance(property, aspectWeaverInstance));
+                    }                    
+                }
+            }
+
+            private TransformationOptions GetTransformationOptions() {
+                var annotations =
+                    from attrib in Annotations.Select(x => x.Value.ConstructRuntimeObject<EnhancePropertySetterAttribute>())
+                    select new TransformationOptions {
+                        CheckEquality = attrib.CheckEquality,
+                        InvokePropertyChanged = attrib.InvokePropertyChanged
+                    };
+                return annotations.FirstOrDefault();
+            }
+
+            private sealed class TransformationOptions {
+                public bool CheckEquality { get; set; }
+                public bool InvokePropertyChanged { get; set; }
+
+                public bool ShouldTransform() {
+                    return CheckEquality || InvokePropertyChanged;
                 }
             }
         }

@@ -50,8 +50,10 @@
     <Compile Include="Aspects\Dependencies\PostEdgeStandardEffects.cs" />
     <Compile Include="Aspects\IGuardPropertyEqualityAspect.cs" />
     <Compile Include="Aspects\INotifyPropertyChangedAspect.cs" />
+    <Compile Include="Aspects\IPostEdgeAspect.cs" />
     <Compile Include="Aspects\NoChangeNotificationAttribute.cs" />
     <Compile Include="Aspects\NotifyPropertyChangedAttribute.cs" />
+    <Compile Include="Aspects\Dependencies\PostEdgeStandardRoles.cs" />
     <Compile Include="Aspects\SafeWhenDisposedAttribute.cs" />
     <Compile Include="Aspects\ThrowWhenDisposedAttribute.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

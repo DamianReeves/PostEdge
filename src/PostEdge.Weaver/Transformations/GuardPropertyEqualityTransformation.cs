@@ -1,6 +1,3 @@
-using System;
-using System.Linq;
-using System.Collections.Generic;
 using System.Text;
 using PostEdge.Aspects.Dependencies;
 using PostEdge.Weaver.Extensions;
@@ -9,13 +6,11 @@ using PostSharp.Aspects.Internals;
 using PostSharp.Sdk.AspectInfrastructure;
 using PostSharp.Sdk.AspectInfrastructure.Dependencies;
 using PostSharp.Sdk.AspectWeaver;
-using PostSharp.Sdk.AspectWeaver.Dependencies;
 using PostSharp.Sdk.AspectWeaver.Transformations;
 using PostSharp.Sdk.CodeModel;
-using PostSharp.Sdk.CodeWeaver;
 using PostSharp.Sdk.Collections;
 
-namespace PostEdge.Weaver {
+namespace PostEdge.Weaver.Transformations {
     internal sealed class GuardPropertyEqualityTransformation : MethodBodyTransformation {
         private readonly TransformationAssets _assets;
 
