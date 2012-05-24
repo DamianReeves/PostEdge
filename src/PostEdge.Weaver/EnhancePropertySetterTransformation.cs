@@ -75,10 +75,12 @@ namespace PostEdge.Weaver {
             public IMethod ObjectEqualsMethod { get; private set; }
             public ITypeSignature LocationBindingTypeSignature { get; private set; }
             public IMethod SetValueMethod { get; private set; }
+            public IMethod GetValueMethod { get; private set; }
             public TransformationAssets(ModuleDeclaration module) {
                 ObjectEqualsMethod = module.FindMethod(typeof(object).GetMethod("Equals", new[] { typeof(object), typeof(object) }), BindingOptions.Default);
                 LocationBindingTypeSignature = module.FindType(typeof(LocationBinding<>));
                 SetValueMethod = module.FindMethod(LocationBindingTypeSignature, "SetValue", x => x.DeclaringType.IsGenericDefinition);
+                GetValueMethod = module.FindMethod(LocationBindingTypeSignature, "GetValue", x => x.DeclaringType.IsGenericDefinition);
             }
         }
 
@@ -135,6 +137,9 @@ namespace PostEdge.Weaver {
                     writer.DetachInstructionSequence();
                 }
 #else
+                if(this.HasEffect(StandardEffects.ChangeControlFlow)) {
+                    Console.WriteLine("Control flow changed");
+                }
                 context.InstructionBlock.MethodBody.Visit(new IMethodBodyVisitor[] { new Visitor(this, context) });
 #endif
             }
@@ -147,7 +152,7 @@ namespace PostEdge.Weaver {
                 private readonly Instance _instance;
                 private readonly MethodBodyTransformationContext _context;
                 private bool _isFirstInstruction = true;
-
+                private InstructionBlock _targetBlock;
                 public TransformationAssets Assets { get { return _instance.Assets; } }
                 public bool IsFirstInstruction {
                     get { return _isFirstInstruction; }
@@ -159,7 +164,61 @@ namespace PostEdge.Weaver {
                     _context = context;
                 }
                 public void EnterInstructionBlock(InstructionBlock instructionBlock, InstructionBlockExceptionHandlingKind exceptionHandlingKind) {
-                    
+                    if(_targetBlock != null) return;
+                    _targetBlock = instructionBlock;
+                    _context.InstructionBlock.MethodBody.InitLocalVariables = true;
+                    var firstChildBlock = _targetBlock.FirstChildBlock;
+                    var property = _instance.Property;
+                    var propertyType = property.PropertyType;
+                    bool isLocationBinding = _targetBlock.MethodBody.Method.Name == "SetValue" 
+                        && _targetBlock.MethodBody.Method.DeclaringType.IsDerivedFrom(Assets.LocationBindingTypeSignature.GetTypeDefinition());
+
+                    InstructionBlock equalityCheckBlock;
+                    if(_instance.ShouldCheckEquality()) {
+                        var oldValueVariable = _targetBlock.DefineLocalVariable(propertyType, string.Empty);
+                        equalityCheckBlock = _targetBlock.AddChildBlock(null, NodePosition.Before, firstChildBlock);
+                        equalityCheckBlock.Comment = "Equality Check";
+                        var sequence = equalityCheckBlock.AddInstructionSequence(null, NodePosition.Before, equalityCheckBlock.FindFirstInstructionSequence());
+
+                        var writer = new InstructionWriter();
+                        writer.AttachInstructionSequence(sequence);
+                        if (isLocationBinding) {
+                            //On the location binding the value parameter is at psotion 3
+                            writer.EmitInstruction(OpCodeNumber.Ldarg_3);
+                        } else {
+                            //For a normal property the value parameter is at position 1
+                            writer.EmitInstruction(OpCodeNumber.Ldarg_1);
+                        }
+                        if (propertyType.IsStruct()) {
+                            writer.EmitInstructionType(OpCodeNumber.Box, propertyType);
+                        }
+                        if (isLocationBinding) {
+                            //writer.AssignValue_LocalVariable(oldValueVariable
+                            //    ,()=>writer.Call_MethodOnTarget(Assets.GetValueMethod, 
+                            //        writer.Get_This,
+                            //        () => writer.EmitInstruction(OpCodeNumber.Ldarg_1),
+                            //        () => writer.EmitInstruction(OpCodeNumber.Ldarg_1)
+                            //    )
+                            //);
+
+                            //TODO: Cast instance at Ldarg1 to the correct type and call getter on that
+                            writer.AssignValue_LocalVariable(oldValueVariable,
+                                                             () => writer.Get_PropertyValue(property));
+                        } else {
+                            writer.AssignValue_LocalVariable(oldValueVariable,
+                                                             () => writer.Get_PropertyValue(property));
+                        }
+                        writer.Box_LocalVariableIfNeeded(oldValueVariable);
+                        var isPrimitive = propertyType.IsPrimitive();
+                        if (isPrimitive) {
+                            writer.Compare_Primitives();
+                        } else {
+                            //TODO: Try and use the equality operator when present
+                            writer.Compare_Objects(Assets.ObjectEqualsMethod);
+                        }
+                        writer.Leave_IfTrue(_context.LeaveBranchTarget);
+                        writer.DetachInstructionSequence();
+                    }
                 }
                 public void LeaveInstructionBlock(InstructionBlock instructionBlock, InstructionBlockExceptionHandlingKind exceptionHandlingKind) { }
                 public void EnterInstructionSequence(InstructionSequence instructionSequence) { }
@@ -168,7 +227,9 @@ namespace PostEdge.Weaver {
                 public void LeaveExceptionHandler(ExceptionHandler exceptionHandler) { }
 
                 public void VisitInstruction(InstructionReader instructionReader) {
+                    return;
                     try {
+                        if(instructionReader.CurrentInstructionBlock != _targetBlock) return;
                         if (!IsFirstInstruction) return;
                         var methodBody = instructionReader.CurrentInstructionSequence.MethodBody;                        
                         bool isLocationBinding = methodBody.Method.Name == "SetValue";
