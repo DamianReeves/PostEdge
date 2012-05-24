@@ -56,7 +56,6 @@
     <Compile Include="GuardPropertyEqualityAspectWeaver.cs" />
     <Compile Include="PostEdgePlugIn.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SetPropertyAdviceWeaver.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PostEdge\PostEdge.csproj">

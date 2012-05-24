@@ -11,7 +11,6 @@ namespace PostEdge.Weaver {
 
         protected override void Initialize() {
             base.Initialize();
-            this.BindAdviceWeaver<SetPropertyAdvice, SetPropertyAdviceWeaver>();
             this.BindAdviceWeaver<EnhancePropertySetterAttribute, EnhancePropertySetterAdviceWeaver>();
             this.BindAspectWeaver<IGuardPropertyEqualityAspect,GuardPropertyEqualityAspectWeaver>();
         }

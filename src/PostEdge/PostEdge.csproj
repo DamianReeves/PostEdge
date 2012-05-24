@@ -47,7 +47,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Aspects\Advices\EnhancePropertySetterAttribute.cs" />
-    <Compile Include="Aspects\Advices\SetPropertyAdvice.cs" />
     <Compile Include="Aspects\Dependencies\PostEdgeStandardEffects.cs" />
     <Compile Include="Aspects\IGuardPropertyEqualityAspect.cs" />
     <Compile Include="Aspects\INotifyPropertyChangedAspect.cs" />

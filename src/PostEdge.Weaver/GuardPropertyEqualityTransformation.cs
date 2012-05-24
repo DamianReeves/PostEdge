@@ -25,17 +25,15 @@ namespace PostEdge.Weaver {
             _assets = module.Cache.GetItem(() => new TransformationAssets(module));
 
             this.Effects.Add(PostEdgeStandardEffects.GuardPropertyEquality);
-            if (!(aspectWeaver is GuardPropertyEqualityAspectWeaver)) {
-                this.Dependencies.Add(
-                    new AspectDependency(
-                        AspectDependencyAction.Order,
-                        AspectDependencyPosition.Before,
-                        new OrDependencyCondition(
-                            new AspectEffectDependencyCondition(StandardEffects.ChangeControlFlow)
-                            )
+            this.Dependencies.Add(
+                new AspectDependency(
+                    AspectDependencyAction.Order,
+                    AspectDependencyPosition.Before,
+                    new OrDependencyCondition(
+                        new AspectEffectDependencyCondition(StandardEffects.ChangeControlFlow)
                         )
-                    );
-            }
+                    )
+                );
         }
 
         public override string GetDisplayName(MethodSemantics semantic) {

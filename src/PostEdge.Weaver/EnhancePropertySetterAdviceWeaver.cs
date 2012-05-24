@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using PostEdge.Weaver.Extensions;
 using PostSharp.Sdk.AspectWeaver;
 using PostSharp.Sdk.CodeModel;
 
@@ -48,7 +49,7 @@ namespace PostEdge.Weaver {
                     select new {
                         CheckEquality = attrib.NamedArguments.GetRuntimeValue<bool>("CheckEquality")
                     };
-                return results.Any();
+                return results.Any(x=>x.CheckEquality);
             }
 
             public override void ProvideTransformations(AspectWeaverInstance aspectWeaverInstance, AspectWeaverTransformationAdder adder) {
@@ -64,7 +65,6 @@ namespace PostEdge.Weaver {
                           && !property.IsStatic
                           && property.DeclaringType != null
                           && property.DeclaringType.Equals(typeDef)
-                          && property.Getter.IsPublicOrInternal()
                     select property;
                 foreach (var property in properties) {
                     adder.Add(property.Setter, _guardEqualityTransformation.CreateInstance(property, aspectWeaverInstance));
