@@ -1,4 +1,3 @@
-//#define NoVisitor
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -34,7 +33,7 @@ namespace PostEdge.Weaver {
             this.Dependencies.Add(
                 new AspectDependency(
                     AspectDependencyAction.Order,
-                    AspectDependencyPosition.After,
+                    AspectDependencyPosition.Before,
                     new OrDependencyCondition(
                         new AspectEffectDependencyCondition(StandardEffects.ChangeControlFlow)
                     )
@@ -103,48 +102,8 @@ namespace PostEdge.Weaver {
             }
 
             public override void Implement(MethodBodyTransformationContext context) {
-                this.AddSymJoinPoint(context);
-                //var writer = context.InstructionBlock.                
-#if NoVisitor
-                var reader = context.InstructionBlock.MethodBody.CreateInstructionReader(true);
-                var rootBlock = context.InstructionBlock.MethodBody.RootInstructionBlock;
-                if(rootBlock == null) return;
-                rootBlock.MethodBody.InitLocalVariables = true;
-                var originalMethodStart = rootBlock.FindFirstInstructionSequence();
-                if (originalMethodStart == null) return;
-                LocalVariableSymbol oldValueVariable;
-                var property = Property;
-                if (ShouldCheckEquality()) {
-                    //
-                    // if (value == this.get_Property)
-                    //    return;
-                    //
-
-                    oldValueVariable = rootBlock.DefineLocalVariable(property.PropertyType, string.Empty);
-                    //var reader = new InstructionReader(rootBlock.MethodBody, true);
-                    var sequence = originalMethodStart.ParentInstructionBlock.AddInstructionSequence(
-                        null, NodePosition.Before, originalMethodStart);
-                    var writer = new InstructionWriter();
-                    writer.AttachInstructionSequence(sequence);
-                    writer.Box_SetterValueIfNeeded(property);
-                    writer.AssignValue_LocalVariable(oldValueVariable,
-                        () => writer.Get_PropertyValue(property));
-                    writer.Box_LocalVariableIfNeeded(oldValueVariable);
-                    var isPrimitive = property.PropertyType.IsPrimitive();
-                    if (isPrimitive) {
-                        writer.Compare_Primitives();
-                    } else {
-                        writer.Compare_Objects(Assets.ObjectEqualsMethod);
-                    }
-                    writer.Leave_IfTrue(context.LeaveBranchTarget);
-                    writer.DetachInstructionSequence();
-                }
-#else
-                if(this.HasEffect(StandardEffects.ChangeControlFlow)) {
-                    Console.WriteLine("Control flow changed");
-                }
+                AddSymJoinPoint(context);                
                 context.InstructionBlock.MethodBody.Visit(new IMethodBodyVisitor[] { new Visitor(this, context) });
-#endif
             }
 
             private bool ShouldCheckEquality() {
@@ -154,13 +113,8 @@ namespace PostEdge.Weaver {
             private sealed class Visitor : IMethodBodyVisitor {
                 private readonly Instance _instance;
                 private readonly MethodBodyTransformationContext _context;
-                private bool _isFirstInstruction = true;
                 private InstructionBlock _targetBlock;
-                public TransformationAssets Assets { get { return _instance.Assets; } }
-                public bool IsFirstInstruction {
-                    get { return _isFirstInstruction; }
-                    private set { _isFirstInstruction = value; }
-                }
+                public TransformationAssets Assets { get { return _instance.Assets; } }                
 
                 public Visitor(Instance instance, MethodBodyTransformationContext context) {
                     _instance = instance;
@@ -200,15 +154,14 @@ namespace PostEdge.Weaver {
                         var writer = new InstructionWriter();
                         writer.AttachInstructionSequence(sequence);                        
                         if (isLocationBinding) {
-                            //TODO: Cast instance at Ldarg1 to the correct type and call getter on that
                             writer.AssignValue_LocalVariable(oldValueVariable
                                 ,()=>writer.Call_MethodOnTarget(property.GetGetter(), 
                                     () => {
                                         //Load the instance parameter of the SetValue method
                                         //and convert it to the type
                                         writer.EmitInstruction(OpCodeNumber.Ldarg_1); 
-                                        writer.EmitInstructionLoadIndirect(Assets.ObjectTypeSignature);
-                                        //writer.Cast_ToType(property.Parent);
+                                        //writer.EmitInstructionLoadIndirect(Assets.ObjectTypeSignature);
+                                        writer.EmitInstructionType(OpCodeNumber.Ldobj, Assets.ObjectTypeSignature);
                                         writer.EmitConvertFromObject(property.Parent);
                                     }
                                 )
