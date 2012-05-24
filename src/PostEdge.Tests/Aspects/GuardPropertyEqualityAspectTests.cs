@@ -10,6 +10,7 @@ namespace PostEdge.Aspects {
             underTest.Flag = true;
             underTest.Flag = true;
             mock.VerifyGet(x=>x.Flag, Times.AtLeast(2));
+            mock.Verify(x=>x.SetFlag(It.IsAny<bool>()), Times.Once());
         }
 
         public void EqualityCheckAspect_Can_Be_Applied_To_ReferenceType() {
@@ -21,10 +22,19 @@ namespace PostEdge.Aspects {
         }
 
         public class MockEqualityChecked {
+            private bool _flag;
+
             [GuardPropertyEqualityAspect]
-            public virtual bool Flag { get; set; }
+            public virtual bool Flag {
+                get { return _flag; }
+                set { SetFlag(value); }
+            }
+
             public virtual string Name { get; set; }
 
+            public virtual void SetFlag(bool value) {
+                _flag = value;
+            }
         }
     }
 }
