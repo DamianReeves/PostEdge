@@ -76,7 +76,9 @@ namespace PostEdge.Weaver {
             public ITypeSignature LocationBindingTypeSignature { get; private set; }
             public IMethod SetValueMethod { get; private set; }
             public IMethod GetValueMethod { get; private set; }
+            public ITypeSignature ObjectTypeSignature { get; private set; }
             public TransformationAssets(ModuleDeclaration module) {
+                ObjectTypeSignature = module.FindType(typeof(object));
                 ObjectEqualsMethod = module.FindMethod(typeof(object).GetMethod("Equals", new[] { typeof(object), typeof(object) }), BindingOptions.Default);
                 LocationBindingTypeSignature = module.FindType(typeof(LocationBinding<>));
                 SetValueMethod = module.FindMethod(LocationBindingTypeSignature, "SetValue", x => x.DeclaringType.IsGenericDefinition);
@@ -87,6 +89,7 @@ namespace PostEdge.Weaver {
         private sealed class Instance : MethodBodyTransformationInstance {
             public PropertyDeclaration Property { get; private set; }
             public TransformationAssets Assets { get { return _transformation._assets; } }
+            public ITypeSignature TargetType { get { return (ITypeSignature)_transformation._targetElement; } }
 
             private readonly EnhancePropertySetterTransformation _transformation;
             public Instance(PropertyDeclaration property, MethodBodyTransformation parent, AspectWeaverInstance aspectWeaverInstance)
@@ -173,15 +176,49 @@ namespace PostEdge.Weaver {
                     bool isLocationBinding = _targetBlock.MethodBody.Method.Name == "SetValue" 
                         && _targetBlock.MethodBody.Method.DeclaringType.IsDerivedFrom(Assets.LocationBindingTypeSignature.GetTypeDefinition());
 
-                    InstructionBlock equalityCheckBlock;
-                    if(_instance.ShouldCheckEquality()) {
+                    InstructionBlock equalityCheckBlock = 
+                        WeaveEqualityCheck(isLocationBinding, property, propertyType, firstChildBlock);
+                }                
+
+                public void LeaveInstructionBlock(InstructionBlock instructionBlock, InstructionBlockExceptionHandlingKind exceptionHandlingKind) { }
+                public void EnterInstructionSequence(InstructionSequence instructionSequence) { }
+                public void LeaveInstructionSequence(InstructionSequence instructionSequence) { }
+                public void EnterExceptionHandler(ExceptionHandler exceptionHandler) { }
+                public void LeaveExceptionHandler(ExceptionHandler exceptionHandler) { }
+
+                public void VisitInstruction(InstructionReader instructionReader) {}
+
+                private InstructionBlock WeaveEqualityCheck(bool isLocationBinding, PropertyDeclaration property, ITypeSignature propertyType, InstructionBlock firstChildBlock) {
+                    InstructionBlock equalityCheckBlock = null;
+                    if (_instance.ShouldCheckEquality()) {
                         var oldValueVariable = _targetBlock.DefineLocalVariable(propertyType, string.Empty);
                         equalityCheckBlock = _targetBlock.AddChildBlock(null, NodePosition.Before, firstChildBlock);
                         equalityCheckBlock.Comment = "Equality Check";
-                        var sequence = equalityCheckBlock.AddInstructionSequence(null, NodePosition.Before, equalityCheckBlock.FindFirstInstructionSequence());
+                        var sequence = equalityCheckBlock.AddInstructionSequence(null, NodePosition.Before,
+                                                                                 equalityCheckBlock.FindFirstInstructionSequence());
 
                         var writer = new InstructionWriter();
-                        writer.AttachInstructionSequence(sequence);
+                        writer.AttachInstructionSequence(sequence);                        
+                        if (isLocationBinding) {
+                            //TODO: Cast instance at Ldarg1 to the correct type and call getter on that
+                            writer.AssignValue_LocalVariable(oldValueVariable
+                                ,()=>writer.Call_MethodOnTarget(property.GetGetter(), 
+                                    () => {
+                                        //Load the instance parameter of the SetValue method
+                                        //and convert it to the type
+                                        writer.EmitInstruction(OpCodeNumber.Ldarg_1); 
+                                        writer.EmitInstructionLoadIndirect(Assets.ObjectTypeSignature);
+                                        //writer.Cast_ToType(property.Parent);
+                                        writer.EmitConvertFromObject(property.Parent);
+                                    }
+                                )
+                            );                            
+                            //writer.AssignValue_LocalVariable(oldValueVariable,
+                            //                                 () => writer.Get_PropertyValue(property));
+                        } else {
+                            writer.AssignValue_LocalVariable(oldValueVariable,
+                                                             () => writer.Get_PropertyValue(property));
+                        }
                         if (isLocationBinding) {
                             //On the location binding the value parameter is at psotion 3
                             writer.EmitInstruction(OpCodeNumber.Ldarg_3);
@@ -191,22 +228,6 @@ namespace PostEdge.Weaver {
                         }
                         if (propertyType.IsStruct()) {
                             writer.EmitInstructionType(OpCodeNumber.Box, propertyType);
-                        }
-                        if (isLocationBinding) {
-                            //writer.AssignValue_LocalVariable(oldValueVariable
-                            //    ,()=>writer.Call_MethodOnTarget(Assets.GetValueMethod, 
-                            //        writer.Get_This,
-                            //        () => writer.EmitInstruction(OpCodeNumber.Ldarg_1),
-                            //        () => writer.EmitInstruction(OpCodeNumber.Ldarg_1)
-                            //    )
-                            //);
-
-                            //TODO: Cast instance at Ldarg1 to the correct type and call getter on that
-                            writer.AssignValue_LocalVariable(oldValueVariable,
-                                                             () => writer.Get_PropertyValue(property));
-                        } else {
-                            writer.AssignValue_LocalVariable(oldValueVariable,
-                                                             () => writer.Get_PropertyValue(property));
                         }
                         writer.Box_LocalVariableIfNeeded(oldValueVariable);
                         var isPrimitive = propertyType.IsPrimitive();
@@ -219,64 +240,7 @@ namespace PostEdge.Weaver {
                         writer.Leave_IfTrue(_context.LeaveBranchTarget);
                         writer.DetachInstructionSequence();
                     }
-                }
-                public void LeaveInstructionBlock(InstructionBlock instructionBlock, InstructionBlockExceptionHandlingKind exceptionHandlingKind) { }
-                public void EnterInstructionSequence(InstructionSequence instructionSequence) { }
-                public void LeaveInstructionSequence(InstructionSequence instructionSequence) { }
-                public void EnterExceptionHandler(ExceptionHandler exceptionHandler) { }
-                public void LeaveExceptionHandler(ExceptionHandler exceptionHandler) { }
-
-                public void VisitInstruction(InstructionReader instructionReader) {
-                    return;
-                    try {
-                        if(instructionReader.CurrentInstructionBlock != _targetBlock) return;
-                        if (!IsFirstInstruction) return;
-                        var methodBody = instructionReader.CurrentInstructionSequence.MethodBody;                        
-                        bool isLocationBinding = methodBody.Method.Name == "SetValue";
-                        if (_instance.ShouldCheckEquality()) {
-                            WeaveEqualityCheck(_context, instructionReader, _instance.Property, isLocationBinding);
-                        }
-                    } finally {
-                        IsFirstInstruction = false;
-                    }
-                }
-
-                private void WeaveEqualityCheck(MethodBodyTransformationContext context, InstructionReader reader, PropertyDeclaration property, bool isLocationBinding) {
-                    _context.InstructionBlock.MethodBody.InitLocalVariables = true;
-                    var propertyType = property.PropertyType;
-                    InstructionSequence before, after, toSplitOn, sequence;
-                    reader.CurrentInstructionSequence.SplitAroundReaderPosition(reader, out before, out after);
-                    toSplitOn = before ?? reader.CurrentInstructionSequence;
-                    var oldValueVariable = reader.CurrentInstructionBlock.DefineLocalVariable(propertyType, string.Empty);
-                    var previousSibling = reader.CurrentInstructionBlock.PreviousSiblingBlock;
-                    var contextInstructionBlock = context.InstructionBlock;
-                    var isSameAsContext = contextInstructionBlock == reader.CurrentInstructionBlock;
-                    sequence = reader.CurrentInstructionBlock.AddInstructionSequence(null, NodePosition.Before, toSplitOn);
-
-                    var writer = new InstructionWriter();
-                    writer.AttachInstructionSequence(sequence);
-                    if (isLocationBinding) {
-                        //On the location binding the value parameter is at psotion 3
-                        writer.EmitInstruction(OpCodeNumber.Ldarg_3);
-                    } else {
-                        //For a normal property the value parameter is at position 1
-                        writer.EmitInstruction(OpCodeNumber.Ldarg_1);
-                    }
-                    if (propertyType.IsStruct()) {
-                        writer.EmitInstructionType(OpCodeNumber.Box, propertyType);
-                    }                    
-                    writer.AssignValue_LocalVariable(oldValueVariable,
-                        () => writer.Get_PropertyValue(property));
-                    writer.Box_LocalVariableIfNeeded(oldValueVariable);
-                    var isPrimitive = propertyType.IsPrimitive();
-                    if (isPrimitive) {
-                        writer.Compare_Primitives();
-                    } else {
-                        //TODO: Try and use the equality operator when present
-                        writer.Compare_Objects(Assets.ObjectEqualsMethod);
-                    }
-                    writer.Leave_IfTrue(context.LeaveBranchTarget);
-                    writer.DetachInstructionSequence();
+                    return equalityCheckBlock;
                 }
             }
         }
