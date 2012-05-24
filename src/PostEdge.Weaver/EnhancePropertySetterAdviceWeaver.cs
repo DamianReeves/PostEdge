@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Reflection;
 using PostSharp.Sdk.AspectWeaver;
 using PostSharp.Sdk.CodeModel;
 
@@ -8,16 +9,15 @@ namespace PostEdge.Weaver {
 
         protected override void Initialize() {
             base.Initialize();
-            this.RequiresRuntimeInstance = false;
-            this.RequiresRuntimeReflectionObject = false;
-            var aspectWeaver = this.AspectWeaver;
+            RequiresRuntimeInstance = false;
+            RequiresRuntimeReflectionObject = false;
         }
 
         protected override AdviceGroup CreateAdviceGroup() {
             return new MyAdviceGroup(this);
         }
 
-        public override bool ValidateAdvice(PostSharp.Sdk.CodeModel.IAnnotationInstance adviseAnnotation) {
+        public override bool ValidateAdvice(IAnnotationInstance adviseAnnotation) {
             if (adviseAnnotation.TargetElement.GetTokenType() != TokenType.TypeDef) return false;
             return base.ValidateAdvice(adviseAnnotation);
         }
@@ -29,21 +29,30 @@ namespace PostEdge.Weaver {
         }
 
         private sealed class MyAdviceGroup : AdviceGroup {
-            private EnhancePropertySetterTransformation _transformation;
+            private GuardPropertyEqualityTransformation _guardEqualityTransformation;
             public MyAdviceGroup(AdviceWeaver parent) : base(parent) {}
 
             protected override void Initialize() {
                 base.Initialize();
                 //At this point Annotations is populated
-                var master = this.MasterAnnotation;
                 if(Annotations.Count <= 0) return;
-                _transformation = new EnhancePropertySetterTransformation(this.AdviceWeaver.AspectWeaver,
-                    this.Annotations.Select(x=>x.Value), this.Annotations[0].TargetElement);
-                this.PrepareTransformation(_transformation);
+                if (ShouldCheckEquality()) {
+                    _guardEqualityTransformation = new GuardPropertyEqualityTransformation(AdviceWeaver.AspectWeaver);
+                }                
+                PrepareTransformation(_guardEqualityTransformation);
+            }
+
+            private bool ShouldCheckEquality() {
+                var results = 
+                    from attrib in Annotations.Select(x => x.Value)
+                    select new {
+                        CheckEquality = attrib.NamedArguments.GetRuntimeValue<bool>("CheckEquality")
+                    };
+                return results.Any();
             }
 
             public override void ProvideTransformations(AspectWeaverInstance aspectWeaverInstance, AspectWeaverTransformationAdder adder) {
-                if (_transformation == null) return;
+                if (_guardEqualityTransformation == null) return;
                 var type = aspectWeaverInstance.TargetElement as IType;
                 if (type == null) return;
                 var typeDef = type.GetTypeDefinition();
@@ -55,9 +64,10 @@ namespace PostEdge.Weaver {
                           && !property.IsStatic
                           && property.DeclaringType != null
                           && property.DeclaringType.Equals(typeDef)
+                          && property.Getter.IsPublicOrInternal()
                     select property;
                 foreach (var property in properties) {
-                    adder.Add(property.Setter, _transformation.CreateInstance(property, aspectWeaverInstance));
+                    adder.Add(property.Setter, _guardEqualityTransformation.CreateInstance(property, aspectWeaverInstance));
                 }
             }
         }
