@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Reflection;
 using PostSharp.Sdk.CodeModel;
@@ -202,6 +203,31 @@ namespace PostEdge.Weaver.Extensions {
 
             var properties = type.GetAllProperties();
             return properties.SingleOrDefault(property => property.Name == name);
+        }
+
+        public static IEnumerable<IMethod> GetMethodsBySignature(this IType type, params string[] signatures) {
+            return GetMethodsBySignature(type, true, signatures);
+        }
+
+        public static IEnumerable<IMethod> GetMethodsBySignature(this IType type, bool includeDerived, params string[] signatures) {
+            if (type == null) throw new ArgumentNullException("type");
+            if (signatures == null) throw new ArgumentNullException("signatures");
+            if(signatures.Length < 1) throw new ArgumentException("Please provide at least one item.","signatures");
+            Contract.EndContractBlock();
+            foreach (var method in type.Methods) {
+                var reflectionName = method.GetReflectionName();
+                Array.FindIndex(signatures, signature => reflectionName == signature);
+            }
+            yield break;
+        }
+
+        public static bool ImplementsInterface(this IType type, ITypeSignature interfaceSignature) {
+            if (type == null) throw new ArgumentNullException("type");
+            if (interfaceSignature == null) throw new ArgumentNullException("interfaceSignature");
+            Contract.EndContractBlock();
+            return 
+                type.GetTypeDefinition()
+                    .InterfaceImplementations.Any(x => x.ImplementedInterface.Equals(interfaceSignature));
         }
 
         #endregion

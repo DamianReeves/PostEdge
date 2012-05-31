@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using PostEdge.Aspects.Advices;
@@ -60,6 +61,7 @@ namespace PostEdge.Weaver {
                 if (type == null) return;
                 var typeDef = type.GetTypeDefinition();
                 //Get all non-static properties declared on this type
+                var method = typeDef.GetMethodsBySignature(_transformationOptions.Signatures);
                 var properties =
                     from property in typeDef.Properties
                     where property.CanWrite
@@ -86,14 +88,18 @@ namespace PostEdge.Weaver {
                     from attrib in Annotations.Select(x => x.Value.ConstructRuntimeObject<EnhancePropertySetterAttribute>())
                     select new TransformationOptions {
                         CheckEquality = attrib.CheckEquality,
-                        InvokePropertyChanged = attrib.InvokePropertyChanged
+                        InvokePropertyChanged = attrib.InvokePropertyChanged,
+                        Signatures = attrib.PropertyChangedMethodNames.Split(new[]{',',';'},StringSplitOptions.RemoveEmptyEntries)
                     };
                 return annotations.FirstOrDefault();
             }
 
+            
+
             private sealed class TransformationOptions {
                 public bool CheckEquality { get; set; }
                 public bool InvokePropertyChanged { get; set; }
+                public string[] Signatures { get; set; }
 
                 public bool ShouldTransform() {
                     return CheckEquality || InvokePropertyChanged;

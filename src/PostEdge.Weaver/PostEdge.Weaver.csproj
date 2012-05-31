@@ -50,12 +50,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EnhancePropertySetterAdviceWeaver.cs" />
+    <Compile Include="NotifyPropertyChangedAspectWeaver.cs" />
     <Compile Include="Transformations\GuardPropertyEqualityTransformation.cs" />
     <Compile Include="Extensions\InstructionWriterExtensions.cs" />
     <Compile Include="Extensions\PostSharpExtensions.cs" />
     <Compile Include="GuardPropertyEqualityAspectWeaver.cs" />
     <Compile Include="PostEdgePlugIn.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Transformations\NotifyPropertyChangedStructuralTransformation.cs" />
     <Compile Include="Transformations\RaisePropertyChangedMethodBodyTransformation.cs" />
   </ItemGroup>
   <ItemGroup>

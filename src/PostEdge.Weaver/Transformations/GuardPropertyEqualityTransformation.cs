@@ -29,6 +29,15 @@ namespace PostEdge.Weaver.Transformations {
                         )
                     )
                 );
+            this.Dependencies.Add(
+                new AspectDependency(
+                    AspectDependencyAction.Order,
+                    AspectDependencyPosition.After,
+                    new OrDependencyCondition(
+                        new AspectEffectDependencyCondition(PostEdgeStandardEffects.RaisesPropertyChangedEvent)
+                        )
+                    )
+                );
         }
 
         public override string GetDisplayName(MethodSemantics semantic) {

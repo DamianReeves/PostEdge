@@ -14,8 +14,7 @@ using PostSharp.Reflection;
 
 namespace PostEdge.Aspects {
     [Serializable]
-    [IntroduceInterface(typeof(INotifyPropertyChanged), OverrideAction = InterfaceOverrideAction.Ignore)]
-    [EnhancePropertySetter(CheckEquality = true)]
+    [EnhancePropertySetter(CheckEquality = true, InvokePropertyChanged = true)]
     [MulticastAttributeUsage(MulticastTargets.Class, Inheritance = MulticastInheritance.Strict)]
     [AspectConfiguration(SerializerType = typeof(MsilAspectSerializer))]
     [ProvideAspectRole(StandardRoles.DataBinding)]
@@ -42,7 +41,7 @@ namespace PostEdge.Aspects {
                    select property;
         }
 
-        [OnLocationSetValueAdvice, MethodPointcut("SelectProperties")]
+        //[OnLocationSetValueAdvice, MethodPointcut("SelectProperties")]
         public void OnPropertySet(LocationInterceptionArgs args) {
             // Don't go further if the new value is equal to the old one.
             // (Possibly use object.Equals here).

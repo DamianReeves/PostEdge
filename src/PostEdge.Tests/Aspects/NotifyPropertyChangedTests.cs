@@ -57,5 +57,10 @@ namespace PostEdge.Aspects {
             [NoChangeNotification]
             public bool? NoChangeNotification { get; set; }
         }
+
+        [NotifyPropertyChanged]
+        public class MockDerivedNpcClass:MockNotifyingObjectWithINPC {
+            public bool IsEnabled { get; set; }
+        }
     }
 }

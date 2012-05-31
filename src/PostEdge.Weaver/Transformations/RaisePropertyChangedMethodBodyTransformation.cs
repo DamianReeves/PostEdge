@@ -4,6 +4,7 @@ using PostSharp.Aspects.Dependencies;
 using PostSharp.Sdk.AspectInfrastructure;
 using PostSharp.Sdk.AspectInfrastructure.Dependencies;
 using PostSharp.Sdk.AspectWeaver;
+using PostSharp.Sdk.AspectWeaver.Dependencies;
 using PostSharp.Sdk.AspectWeaver.Transformations;
 using PostSharp.Sdk.CodeModel;
 
@@ -18,8 +19,25 @@ namespace PostEdge.Weaver.Transformations {
                     AspectDependencyAction.Order,
                     AspectDependencyPosition.Before,
                     new AndDependencyCondition(
-                        new AspectEffectDependencyCondition(StandardEffects.ChangeControlFlow),
+                        new AspectEffectDependencyCondition(StandardEffects.ChangeControlFlow)                        
+                        )
+                    )
+                );            
+            this.Dependencies.Add(
+                new AspectDependency(
+                    AspectDependencyAction.Order,
+                    AspectDependencyPosition.Before,
+                    new AndDependencyCondition(
                         new AspectEffectDependencyCondition(PostEdgeStandardEffects.GuardPropertyEquality)
+                        )
+                    )
+                );
+            this.Dependencies.Add(
+                new AspectDependency(
+                    AspectDependencyAction.Commute,
+                    AspectDependencyPosition.Before,
+                    new AndDependencyCondition(
+                        new SameAspectInstanceDependencyCondition()
                         )
                     )
                 );
@@ -44,6 +62,8 @@ namespace PostEdge.Weaver.Transformations {
 
             public override void Implement(MethodBodyTransformationContext context) {
                 AddSymJoinPoint(context);
+                var npcBlock = context.InstructionBlock;
+                
             }
 
             public override MethodBodyTransformationOptions GetOptions(MetadataDeclaration originalTargetElement, MethodSemantics semantic) {
