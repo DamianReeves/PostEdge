@@ -10,7 +10,10 @@ using PostSharp.Sdk.CodeModel;
 
 namespace PostEdge.Weaver {
     internal class EnhancePropertySetterAdviceWeaver : AdviceWeaver {
-
+        public EnhancePropertySetterAdviceWeaver() {
+            this.RequiresRuntimeInstance = false;
+            this.RequiresRuntimeReflectionObject = false;
+        }
         protected override void Initialize() {
             base.Initialize();
             RequiresRuntimeInstance = false;

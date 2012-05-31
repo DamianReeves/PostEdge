@@ -62,5 +62,20 @@ namespace PostEdge.Aspects {
         public class MockDerivedNpcClass:MockNotifyingObjectWithINPC {
             public bool IsEnabled { get; set; }
         }
+
+        [NotifyPropertyChanged]
+        public class MockSelfImplemented : INotifyPropertyChanged{
+            public event PropertyChangedEventHandler PropertyChanged;
+
+            public virtual void OnPropertyChanged(string propertyName) {
+                var propertyChanged = PropertyChanged;
+                if (propertyChanged != null) {
+                    propertyChanged(this, new PropertyChangedEventArgs(propertyName));
+                }
+            }
+
+            public bool IsEnabled { get; set; }
+
+        }
     }
 }
