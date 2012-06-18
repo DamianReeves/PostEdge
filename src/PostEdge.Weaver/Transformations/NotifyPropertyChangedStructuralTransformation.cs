@@ -68,9 +68,10 @@ namespace PostEdge.Weaver.Transformations {
                         Name = "PropertyChanged",
                         EventType = Assets.PropertyChangedEventHandlerTypeSignature,
                     };
+                    //eventDecl.
                     _typeDef.Events.Add(eventDecl);
                     var theEvent = _typeDef.FindEvent("PropertyChanged");
-                    IntroduceEvent(context, _typeDef, theEvent.Event);
+                    //IntroduceEvent(context, _typeDef, theEvent.Event);
                 }
             }
 
@@ -79,22 +80,47 @@ namespace PostEdge.Weaver.Transformations {
             }
 
             protected void IntroduceEvent(TransformationContext context, TypeDefDeclaration type, EventDeclaration eventDeclaration) {
-                var addOn = eventDeclaration.GetAccessor(MethodSemantics.AddOn);                
+                var addOn = eventDeclaration.GetAccessor(MethodSemantics.AddOn);
                 if (addOn == null) {
-                    var method = new MethodDefDeclaration {
+                    var method = new MethodDefDeclaration
+                    {
                         Attributes = MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.Final | MethodAttributes.NewSlot | MethodAttributes.SpecialName,
-                        Name = type.Methods.GetUniqueName("add_"+eventDeclaration.Name+"{0}"),
+                        Name = "add_" + eventDeclaration.Name,
                         CallingConvention = CallingConvention.HasThis
                     };
-                    method.Parameters.EnsureCapacity(1);
-                   // var methodBody = new MethodBodyDeclaration();
-                    //var parameter = new ParameterDeclaration {
-                    //    Name = "value",
-                    //    ParameterType = Assets.PropertyChangedEventHandlerTypeSignature,
-                    //};
-                    //method.Parameters.Add(parameter);                    
-                    var semantic  = new MethodSemanticDeclaration(MethodSemantics.AddOn, method);
+                    //method.Parameters.EnsureCapacity(1);
+                    var methodBody = new MethodBodyDeclaration();
+                    methodBody.EnsureWritableLocalVariables();
+                    var parameter = new ParameterDeclaration
+                    {
+                        Name = "value",
+                        ParameterType = Assets.PropertyChangedEventHandlerTypeSignature,
+                    };
+                    method.Parameters.Add(parameter);
+                    var semantic = new MethodSemanticDeclaration(MethodSemantics.AddOn, method);
                     eventDeclaration.Members.Add(semantic);
+
+                    //method.MethodBody = methodBody;
+                    //methodBody.RootInstructionBlock = methodBody.CreateInstructionBlock();
+                }
+                var removeOn = eventDeclaration.GetAccessor(MethodSemantics.RemoveOn);
+                if (removeOn == null) {
+                    var method = new MethodDefDeclaration {
+                        Attributes = MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.Final | MethodAttributes.NewSlot | MethodAttributes.SpecialName,
+                        Name = "remove_" + eventDeclaration.Name,
+                        CallingConvention = CallingConvention.HasThis
+                    };
+                    //method.Parameters.EnsureCapacity(1);
+                    var methodBody = new MethodBodyDeclaration();
+                    methodBody.EnsureWritableLocalVariables();
+                    var parameter = new ParameterDeclaration {
+                        Name = "value",
+                        ParameterType = Assets.PropertyChangedEventHandlerTypeSignature,
+                    };
+                    method.Parameters.Add(parameter);
+                    var semantic = new MethodSemanticDeclaration(MethodSemantics.AddOn, method);
+                    eventDeclaration.Members.Add(semantic);
+
                     //method.MethodBody = methodBody;
                     //methodBody.RootInstructionBlock = methodBody.CreateInstructionBlock();
                 }
