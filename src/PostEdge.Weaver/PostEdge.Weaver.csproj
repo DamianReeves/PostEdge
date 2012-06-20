@@ -37,8 +37,9 @@
     <Reference Include="PostSharp, Version=2.1.0.0, Culture=neutral, PublicKeyToken=b13fd38b8f9c99d7, processorArchitecture=MSIL">
       <HintPath>..\packages\PostSharp.2.1.7.1\lib\net20\PostSharp.dll</HintPath>
     </Reference>
-    <Reference Include="PostSharp.Sdk">
-      <HintPath>..\packages\PostSharp.2.1.6.15\tools\Release\PostSharp.Sdk.dll</HintPath>
+    <Reference Include="PostSharp.Sdk, Version=2.1.0.0, Culture=neutral, PublicKeyToken=b13fd38b8f9c99d7, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\PostSharp.2.1.7.1\tools\Release\PostSharp.Sdk.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />

@@ -62,15 +62,11 @@ namespace PostEdge.Weaver.Transformations {
             private void EnsureHasPropertyChangedEvent(TransformationContext context) {
                 var propertyChangedEvent = _typeDef.FindEvent("PropertyChanged");
                 if (propertyChangedEvent == null) {
-                    //typeDef.Events. Add(new EventDeclaration());
-                    var eventDecl = new EventDeclaration
-                    {
+                    var eventDecl = new EventDeclaration {
                         Name = "PropertyChanged",
                         EventType = Assets.PropertyChangedEventHandlerTypeSignature,
                     };
-                    //eventDecl.
                     _typeDef.Events.Add(eventDecl);
-                    //var theEvent = _typeDef.FindEvent("PropertyChanged");
                     Transformation.IntroduceEvent(context, _typeDef, eventDecl);
                 }
             }
