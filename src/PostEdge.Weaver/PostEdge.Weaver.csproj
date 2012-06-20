@@ -52,6 +52,7 @@
   <ItemGroup>
     <Compile Include="EnhancePropertySetterAdviceWeaver.cs" />
     <Compile Include="Extensions\CodeWriterExtensions.cs" />
+    <Compile Include="PostEdgeWeavingHelper.cs" />
     <Compile Include="NotifyPropertyChangedAspectWeaver.cs" />
     <Compile Include="Transformations\GuardPropertyEqualityTransformation.cs" />
     <Compile Include="Extensions\InstructionWriterExtensions.cs" />

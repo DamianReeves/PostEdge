@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using PostSharp.Sdk.CodeModel;
@@ -189,16 +190,21 @@ namespace PostEdge.Weaver.Extensions
         #endregion
 
         #region Implement Public Event
+        //private static readonly MethodBase DelegateCombineReflectionMethod = typeof(Delegate).GetMethod()
         public static void ImplementAddOn(
             this EventDeclaration theEvent,
             TypeDefDeclaration type,
+            IField field,
             WeavingHelper weavingHelper = null,
             MethodAttributes methodAttributes = 
                 MethodAttributes.Public | MethodAttributes.HideBySig
                 | MethodAttributes.Virtual | MethodAttributes.Final 
                 | MethodAttributes.NewSlot | MethodAttributes.SpecialName) 
         {
-            weavingHelper = weavingHelper ?? new WeavingHelper(type.Module);
+            var module = type.Module;
+            weavingHelper = weavingHelper ?? new WeavingHelper(module);
+            var pEWeavingHelper = module.Cache.GetItem(() => new PostEdgeWeavingHelper(module));
+
             var method = new MethodDefDeclaration{
                 Attributes = methodAttributes,
                 Name = "add_" + theEvent.Name,
@@ -206,56 +212,186 @@ namespace PostEdge.Weaver.Extensions
             };
             type.Methods.Add(method);
             weavingHelper.AddCompilerGeneratedAttribute(method.CustomAttributes);
-            //method.Parameters.EnsureCapacity(1);
-            var methodBody = new MethodBodyDeclaration();
-            methodBody.EnsureWritableLocalVariables();
-            var parameter = new ParameterDeclaration
-            {
+            //method.Parameters.EnsureCapacity(1);            
+            var parameter = new ParameterDeclaration {
                 Name = "value",
                 ParameterType = theEvent.EventType,
             };
             method.Parameters.Add(parameter);
+            
+            var methodBody = new MethodBodyDeclaration();
+            methodBody.EnsureWritableLocalVariables();
+            var instructionBlock = methodBody.CreateInstructionBlock();
+            var initSequence = methodBody.CreateInstructionSequence();
+            var loopSequence = methodBody.CreateInstructionSequence();
+            var endSequence = methodBody.CreateInstructionSequence();
+            instructionBlock.AddInstructionSequence(initSequence, NodePosition.After, null);
+            instructionBlock.AddInstructionSequence(loopSequence, NodePosition.After, initSequence);
+            instructionBlock.AddInstructionSequence(endSequence, NodePosition.After, loopSequence);
+            methodBody.RootInstructionBlock = instructionBlock;
             method.MethodBody = methodBody;
-            var semantic = new MethodSemanticDeclaration(MethodSemantics.AddOn, method);
-            theEvent.Members.Add(semantic);
+            methodBody.CreateLocalVariable(theEvent.EventType);
+            methodBody.CreateLocalVariable(theEvent.EventType);
+            methodBody.CreateLocalVariable(theEvent.EventType);
+            methodBody.CreateLocalVariable(module.Cache.GetIntrinsic(typeof (bool)));
 
-            //method.MethodBody = methodBody;
-            methodBody.RootInstructionBlock = methodBody.CreateInstructionBlock();
+            var writer = new InstructionWriter();
+            //Initialize
+            writer.AttachInstructionSequence(initSequence);
+
+            //PropertyChangedHandler handler = this.PropertyChanged
+            writer.EmitInstruction(OpCodeNumber.Ldarg_0);           //Get the this pointer
+            writer.EmitInstructionField(OpCodeNumber.Ldfld, field); //Get the event's field
+            writer.EmitInstruction(OpCodeNumber.Stloc_0);           //store into the first local variable
+            writer.DetachInstructionSequence();
+
+            //Loop
+            //do {
+            writer.AttachInstructionSequence(loopSequence);            
+            
+            //PropertyChangedHandler handler2 = handler;
+            writer.EmitInstruction(OpCodeNumber.Ldloc_0);
+            writer.EmitInstruction(OpCodeNumber.Stloc_1);
+
+            //PropertyChangedHandler handler3 = System.Delegate.Combine(handler2, value)
+            writer.EmitInstruction(OpCodeNumber.Ldloc_1);
+            writer.EmitInstruction(OpCodeNumber.Ldarg_1);
+            writer.EmitInstructionMethod(OpCodeNumber.Call, pEWeavingHelper.DelegateCombineMethod);
+            writer.EmitInstructionType(OpCodeNumber.Castclass, theEvent.EventType);
+            writer.EmitInstruction(OpCodeNumber.Stloc_2);
+            
+            //handler = System.Threading.Interlocked.CompareExchnage<PropertyChangedEventHandler>(ref this.PropertyChtyChanged, handler3, handler2);
+            var compareExchangeMethodT = pEWeavingHelper.CompareExchangeMethod;
+            var compareExchangeMethod = compareExchangeMethodT.GetGenericInstance(module, theEvent.EventType);
+            writer.EmitInstruction(OpCodeNumber.Ldarg_0);           //Load this
+            writer.EmitInstructionField(OpCodeNumber.Ldflda, field); 
+            writer.EmitInstruction(OpCodeNumber.Ldloc_2);
+            writer.EmitInstruction(OpCodeNumber.Ldloc_1);
+            writer.EmitInstructionMethod(OpCodeNumber.Call, compareExchangeMethod);
+            writer.EmitInstruction(OpCodeNumber.Stloc_0);
+
+            
+            //flag = handler != handler2;
+            writer.EmitInstruction(OpCodeNumber.Ldloc_0);
+            writer.EmitInstruction(OpCodeNumber.Ldloc_1);
+            writer.EmitInstruction(OpCodeNumber.Ceq);
+            writer.EmitInstruction(OpCodeNumber.Ldc_I4_0);
+            writer.EmitInstruction(OpCodeNumber.Ceq);
+            writer.EmitInstruction(OpCodeNumber.Stloc_3);
+
+            //} while (flag);
+            writer.EmitInstruction(OpCodeNumber.Ldloc_3);
+            writer.EmitBranchingInstruction(OpCodeNumber.Brtrue_S, loopSequence);
+
+            writer.DetachInstructionSequence();
+
+            //End
+            writer.AttachInstructionSequence(endSequence);
+            writer.EmitInstruction(OpCodeNumber.Ret);               //Exit the method
+            writer.DetachInstructionSequence();
+
+            theEvent.Members.Add(new MethodSemanticDeclaration(MethodSemantics.AddOn, method));
         }
 
         public static void ImplementRemoveOn(
             this EventDeclaration theEvent,
             TypeDefDeclaration type,
+            IField field,
             WeavingHelper weavingHelper = null,
             MethodAttributes methodAttributes =
                 MethodAttributes.Public | MethodAttributes.HideBySig
                 | MethodAttributes.Virtual | MethodAttributes.Final 
                 | MethodAttributes.NewSlot | MethodAttributes.SpecialName) 
         {
-            weavingHelper = weavingHelper ?? new WeavingHelper(type.Module);        
-            var method = new MethodDefDeclaration
-            {
+            var module = type.Module;
+            weavingHelper = weavingHelper ?? new WeavingHelper(module);
+            var pEWeavingHelper = module.Cache.GetItem(() => new PostEdgeWeavingHelper(module));
+    
+            var method = new MethodDefDeclaration {
                 Attributes = methodAttributes,
                 Name = "remove_" + theEvent.Name,
                 CallingConvention = CallingConvention.HasThis
             };
             type.Methods.Add(method);
             weavingHelper.AddCompilerGeneratedAttribute(method.CustomAttributes);
-            //method.Parameters.EnsureCapacity(1);
-            var methodBody = new MethodBodyDeclaration();
-            methodBody.EnsureWritableLocalVariables();
-            var parameter = new ParameterDeclaration
-            {
+            var parameter = new ParameterDeclaration {
                 Name = "value",
                 ParameterType = theEvent.EventType,
             };
             method.Parameters.Add(parameter);
-            method.MethodBody = methodBody;
-            var semantic = new MethodSemanticDeclaration(MethodSemantics.RemoveOn, method);
-            theEvent.Members.Add(semantic);
 
-            //method.MethodBody = methodBody;
-            methodBody.RootInstructionBlock = methodBody.CreateInstructionBlock();
+            var methodBody = new MethodBodyDeclaration();
+            methodBody.EnsureWritableLocalVariables();
+            var instructionBlock = methodBody.CreateInstructionBlock();
+            var initSequence = methodBody.CreateInstructionSequence();
+            var loopSequence = methodBody.CreateInstructionSequence();
+            var endSequence = methodBody.CreateInstructionSequence();
+            instructionBlock.AddInstructionSequence(initSequence, NodePosition.After, null);
+            instructionBlock.AddInstructionSequence(loopSequence, NodePosition.After, initSequence);
+            instructionBlock.AddInstructionSequence(endSequence, NodePosition.After, loopSequence);
+            methodBody.RootInstructionBlock = instructionBlock;
+            method.MethodBody = methodBody;
+            methodBody.CreateLocalVariable(theEvent.EventType);
+            methodBody.CreateLocalVariable(theEvent.EventType);
+            methodBody.CreateLocalVariable(theEvent.EventType);
+            methodBody.CreateLocalVariable(module.Cache.GetIntrinsic(typeof(bool)));
+
+            var writer = new InstructionWriter();
+            //Initialize
+            writer.AttachInstructionSequence(initSequence);
+
+            //PropertyChangedHandler handler = this.PropertyChanged
+            writer.EmitInstruction(OpCodeNumber.Ldarg_0);           //Get the this pointer
+            writer.EmitInstructionField(OpCodeNumber.Ldfld, field); //Get the event's field
+            writer.EmitInstruction(OpCodeNumber.Stloc_0);           //store into the first local variable
+            writer.DetachInstructionSequence();
+
+            //Loop
+            //do {
+            writer.AttachInstructionSequence(loopSequence);
+
+            //PropertyChangedHandler handler2 = handler;
+            writer.EmitInstruction(OpCodeNumber.Ldloc_0);
+            writer.EmitInstruction(OpCodeNumber.Stloc_1);
+
+            //PropertyChangedHandler handler3 = System.Delegate.Remove(handler2, value)
+            writer.EmitInstruction(OpCodeNumber.Ldloc_1);
+            writer.EmitInstruction(OpCodeNumber.Ldarg_1);
+            writer.EmitInstructionMethod(OpCodeNumber.Call, pEWeavingHelper.DelegateRemoveMethod);
+            writer.EmitInstructionType(OpCodeNumber.Castclass, theEvent.EventType);
+            writer.EmitInstruction(OpCodeNumber.Stloc_2);
+
+            //handler = System.Threading.Interlocked.CompareExchnage<PropertyChangedEventHandler>(ref this.PropertyChtyChanged, handler3, handler2);
+            var compareExchangeMethodT = pEWeavingHelper.CompareExchangeMethod;
+            var compareExchangeMethod = compareExchangeMethodT.GetGenericInstance(module, theEvent.EventType);
+            writer.EmitInstruction(OpCodeNumber.Ldarg_0);           //Load this
+            writer.EmitInstructionField(OpCodeNumber.Ldflda, field);
+            writer.EmitInstruction(OpCodeNumber.Ldloc_2);
+            writer.EmitInstruction(OpCodeNumber.Ldloc_1);
+            writer.EmitInstructionMethod(OpCodeNumber.Call, compareExchangeMethod);
+            writer.EmitInstruction(OpCodeNumber.Stloc_0);
+
+
+            //flag = handler != handler2;
+            writer.EmitInstruction(OpCodeNumber.Ldloc_0);
+            writer.EmitInstruction(OpCodeNumber.Ldloc_1);
+            writer.EmitInstruction(OpCodeNumber.Ceq);
+            writer.EmitInstruction(OpCodeNumber.Ldc_I4_0);
+            writer.EmitInstruction(OpCodeNumber.Ceq);
+            writer.EmitInstruction(OpCodeNumber.Stloc_3);
+
+            //} while (flag);
+            writer.EmitInstruction(OpCodeNumber.Ldloc_3);
+            writer.EmitBranchingInstruction(OpCodeNumber.Brtrue_S, loopSequence);
+
+            writer.DetachInstructionSequence();
+
+            //End
+            writer.AttachInstructionSequence(endSequence);
+            writer.EmitInstruction(OpCodeNumber.Ret);               //Exit the method
+            writer.DetachInstructionSequence();
+
+            theEvent.Members.Add(new MethodSemanticDeclaration(MethodSemantics.RemoveOn, method));
         }
         #endregion
     }

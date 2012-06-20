@@ -17,13 +17,25 @@ namespace PostEdge.Weaver.Transformations {
         }    
     
         protected void IntroduceEvent(TransformationContext context, TypeDefDeclaration type, EventDeclaration theEvent) {
+            var fieldRef = type.FindField(theEvent.Name);
+            FieldDefDeclaration field;
+            if(fieldRef == null) {
+                field = new FieldDefDeclaration {
+                    Attributes = FieldAttributes.Private,
+                    Name = theEvent.Name,
+                    FieldType = theEvent.EventType,
+                };
+                type.Fields.Add(field);
+            } else {
+                field = fieldRef.Field;
+            }
             var addOn = theEvent.GetAccessor(MethodSemantics.AddOn);
             if (addOn == null) {
-                theEvent.ImplementAddOn(type, AspectInfrastructureTask.WeavingHelper);
+                theEvent.ImplementAddOn(type, field, AspectInfrastructureTask.WeavingHelper);
             }
             var removeOn = theEvent.GetAccessor(MethodSemantics.RemoveOn);
             if (removeOn == null) {
-                theEvent.ImplementRemoveOn(type, AspectInfrastructureTask.WeavingHelper);
+                theEvent.ImplementRemoveOn(type, field, AspectInfrastructureTask.WeavingHelper);
             }
         }
     }
