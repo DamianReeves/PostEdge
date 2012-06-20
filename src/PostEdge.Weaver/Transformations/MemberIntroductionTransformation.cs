@@ -12,6 +12,8 @@ namespace PostEdge.Weaver.Transformations {
         protected MemberIntroductionTransformation(AspectWeaver aspectWeaver) : base(aspectWeaver) {
         }
 
+        public WeavingHelper WeavingHelper { get { return AspectInfrastructureTask.WeavingHelper; } }
+
         protected MethodDefDeclaration IntroduceMethod(TransformationContext context, TypeDefDeclaration type, MethodDefDeclaration methodDef) {
             throw new NotImplementedException();
         }    
