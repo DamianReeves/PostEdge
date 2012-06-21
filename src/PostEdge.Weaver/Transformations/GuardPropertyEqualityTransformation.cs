@@ -85,8 +85,8 @@ namespace PostEdge.Weaver.Transformations {
 
             public override void Implement(MethodBodyTransformationContext context) {
                 AddSymJoinPoint(context);     
-                AddGuard(context);
-                //context.InstructionBlock.MethodBody.Visit(new IMethodBodyVisitor[] { new Visitor(this, context) });
+                //AddGuard(context);
+                context.InstructionBlock.MethodBody.Visit(new IMethodBodyVisitor[] { new Visitor(this, context) });
             }
 
             private void AddGuard(MethodBodyTransformationContext context) {
@@ -116,11 +116,13 @@ namespace PostEdge.Weaver.Transformations {
                 writer.DetachInstructionSequence();
 
                 //Make sure properly redirected
-                txRootBlock.RedirectBranchInstructions(reader, writer, endSequence,
-                    inst=> inst.BranchTargetOperand == context.LeaveBranchTarget);
+                methodBody.RootInstructionBlock.RedirectBranchInstructions(reader, writer, endSequence
+                    //, inst=> inst.BranchTargetOperand == context.LeaveBranchTarget
+                );
 
                 writer.AttachInstructionSequence(endSequence);
-                weavingHelper.WriteLine("Ending of AddGuard",writer);               
+                weavingHelper.WriteLine("Ending of AddGuard",writer);     
+                //txRootBlock.MoveInstructionBlock();
                 writer.DetachInstructionSequence();
             }
 

@@ -22,12 +22,13 @@ namespace PostEdge.Weaver.Extensions {
                     writer.AttachInstructionSequence(sequence);
                     reader.EnterInstructionSequence(sequence);
                     while (reader.ReadInstruction()) {
+                        var opCode = reader.CurrentInstruction.OpCodeNumber;
                         var opCodeInfo = reader.CurrentInstruction.OpCodeInfo;
                         if ((opCodeInfo.FlowControl == FlowControl.Branch
                             || opCodeInfo.FlowControl == FlowControl.Cond_Branch)
                             && (predicate == null || predicate(reader.CurrentInstruction))) {
                             commit = true;
-                            writer.EmitBranchingInstruction(reader.CurrentInstruction.OpCodeNumber, branchTargetSequence);
+                            writer.EmitBranchingInstruction(opCode, branchTargetSequence);
                         } else {
                             reader.CurrentInstruction.Write(writer);
                         }
