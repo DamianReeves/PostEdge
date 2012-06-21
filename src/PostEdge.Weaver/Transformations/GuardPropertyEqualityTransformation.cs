@@ -84,8 +84,50 @@ namespace PostEdge.Weaver.Transformations {
             }
 
             public override void Implement(MethodBodyTransformationContext context) {
-                AddSymJoinPoint(context);                
-                context.InstructionBlock.MethodBody.Visit(new IMethodBodyVisitor[] { new Visitor(this, context) });
+                AddSymJoinPoint(context);     
+                AddGuard(context);
+                //context.InstructionBlock.MethodBody.Visit(new IMethodBodyVisitor[] { new Visitor(this, context) });
+            }
+
+            private void AddGuard(MethodBodyTransformationContext context) {
+                var property = Property;
+                var propertyType = property.PropertyType;
+
+                var weavingHelper = _transformation.AspectInfrastructureTask.WeavingHelper;
+                var methodBody = context.InstructionBlock.MethodBody;
+                var originalBlock = context.InstructionBlock;
+                var txRootBlock = context.InstructionBlock.Nest();
+                var guardBlock = methodBody.CreateInstructionBlock();
+                guardBlock.Comment = "Start of Block - Guard Property Equality";                
+                txRootBlock.AddChildBlock(guardBlock, NodePosition.Before, originalBlock);
+                var guardSequence = methodBody.CreateInstructionSequence();
+                guardBlock.AddInstructionSequence(guardSequence, NodePosition.After, null);
+
+                var endBlock = txRootBlock.AddChildBlock(null, NodePosition.After, originalBlock);
+                var endSequence = methodBody.CreateInstructionSequence();                
+                endBlock.AddInstructionSequence(endSequence, NodePosition.After, null);
+
+                var reader = methodBody.CreateInstructionReader();
+                var writer = new InstructionWriter();    
+            
+                //Add Guard code
+                writer.AttachInstructionSequence(guardSequence);
+                weavingHelper.WriteLine("Beginning of AddGuard", writer);               
+                writer.DetachInstructionSequence();
+
+                //Make sure properly redirected
+                txRootBlock.RedirectBranchInstructions(reader, writer, endSequence,
+                    inst=> inst.BranchTargetOperand == context.LeaveBranchTarget);
+
+                writer.AttachInstructionSequence(endSequence);
+                weavingHelper.WriteLine("Ending of AddGuard",writer);               
+                writer.DetachInstructionSequence();
+            }
+
+            private bool CheckIfIsLocationBinding(MethodBodyDeclaration methodBody) {
+                bool isLocationBinding = methodBody.Method.Name == "SetValue"
+                        && methodBody.Method.DeclaringType.IsDerivedFrom(Assets.LocationBindingTypeSignature.GetTypeDefinition());
+                return isLocationBinding;
             }
 
             private sealed class Visitor : IMethodBodyVisitor {
@@ -105,8 +147,7 @@ namespace PostEdge.Weaver.Transformations {
                     var firstChildBlock = _targetBlock.FirstChildBlock;
                     var property = _transformationInstance.Property;
                     var propertyType = property.PropertyType;
-                    bool isLocationBinding = _targetBlock.MethodBody.Method.Name == "SetValue" 
-                        && _targetBlock.MethodBody.Method.DeclaringType.IsDerivedFrom(Assets.LocationBindingTypeSignature.GetTypeDefinition());
+                    bool isLocationBinding = _transformationInstance.CheckIfIsLocationBinding(_targetBlock.MethodBody);
 
                     WeaveEqualityCheck(isLocationBinding, property, propertyType, firstChildBlock);
                 }                
@@ -123,8 +164,9 @@ namespace PostEdge.Weaver.Transformations {
                     var oldValueVariable = _targetBlock.DefineLocalVariable(propertyType, string.Empty);
                     var equalityCheckBlock = _targetBlock.AddChildBlock(null, NodePosition.Before, firstChildBlock);
                     equalityCheckBlock.Comment = "Equality Check";
-                    var sequence = equalityCheckBlock.AddInstructionSequence(null, NodePosition.Before,
-                                                                             equalityCheckBlock.FindFirstInstructionSequence());
+                    var originalStartSequence = equalityCheckBlock.FindFirstInstructionSequence();
+                    var sequence = equalityCheckBlock.AddInstructionSequence(
+                        null, NodePosition.Before, originalStartSequence);
                     //var endSequence = _context.LeaveBranchTarget.ParentInstructionBlock.AddInstructionSequence(null, NodePosition.Before,
                     //                                                            _context.LeaveBranchTarget);
                     var endSequence = _context.LeaveBranchTarget;
@@ -169,6 +211,7 @@ namespace PostEdge.Weaver.Transformations {
                     }
                     //writer.Leave_IfTrue(_context.LeaveBranchTarget);
                     writer.Leave_IfTrue(endSequence);
+                    //writer.EmitBranchingInstruction(OpCodeNumber.Brfalse, originalStartSequence);
                     writer.DetachInstructionSequence();
                 }
             }
