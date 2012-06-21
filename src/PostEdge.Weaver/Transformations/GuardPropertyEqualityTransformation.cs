@@ -125,7 +125,9 @@ namespace PostEdge.Weaver.Transformations {
                     equalityCheckBlock.Comment = "Equality Check";
                     var sequence = equalityCheckBlock.AddInstructionSequence(null, NodePosition.Before,
                                                                              equalityCheckBlock.FindFirstInstructionSequence());
-
+                    //var endSequence = _context.LeaveBranchTarget.ParentInstructionBlock.AddInstructionSequence(null, NodePosition.Before,
+                    //                                                            _context.LeaveBranchTarget);
+                    var endSequence = _context.LeaveBranchTarget;
                     var writer = new InstructionWriter();
                     writer.AttachInstructionSequence(sequence);
                     if (isLocationBinding) {
@@ -165,7 +167,8 @@ namespace PostEdge.Weaver.Transformations {
                         //TODO: Try and use the equality operator when present
                         writer.Compare_Objects(Assets.ObjectEqualsMethod);
                     }
-                    writer.Leave_IfTrue(_context.LeaveBranchTarget);
+                    //writer.Leave_IfTrue(_context.LeaveBranchTarget);
+                    writer.Leave_IfTrue(endSequence);
                     writer.DetachInstructionSequence();
                 }
             }

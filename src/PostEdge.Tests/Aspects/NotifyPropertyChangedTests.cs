@@ -65,6 +65,7 @@ namespace PostEdge.Aspects {
 
         [NotifyPropertyChanged]
         public class MockSelfImplemented : INotifyPropertyChanged{
+            private bool _manuallyFiredProperty;
             public event PropertyChangedEventHandler PropertyChanged;
 
             public virtual void OnPropertyChanged(string propertyName) {
@@ -76,6 +77,14 @@ namespace PostEdge.Aspects {
 
             public bool IsEnabled { get; set; }
 
+            [NoChangeNotification]
+            public bool ManuallyFiredProperty {
+                get { return _manuallyFiredProperty; } 
+                set { 
+                    _manuallyFiredProperty = value;
+                    OnPropertyChanged("ManuallyFiredProperty");
+                }
+            }
         }
     }
 }
