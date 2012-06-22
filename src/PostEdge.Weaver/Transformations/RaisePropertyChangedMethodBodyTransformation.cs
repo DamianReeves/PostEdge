@@ -20,10 +20,10 @@ namespace PostEdge.Weaver.Transformations {
                     AspectDependencyAction.Order,
                     AspectDependencyPosition.Before,
                     new AndDependencyCondition(
-                        new AspectEffectDependencyCondition(StandardEffects.ChangeControlFlow)                        
+                        new AspectEffectDependencyCondition(StandardEffects.ChangeControlFlow)
                         )
                     )
-                );            
+                );
             this.Dependencies.Add(
                 new AspectDependency(
                     AspectDependencyAction.Order,
@@ -50,7 +50,7 @@ namespace PostEdge.Weaver.Transformations {
         }
 
         public AspectWeaverTransformationInstance CreateInstance(PropertyDeclaration property, AspectWeaverInstance aspectWeaverInstance) {
-            return new Instance(property,this, aspectWeaverInstance);
+            return new Instance(property, this, aspectWeaverInstance);
         }
 
         private class Instance : MethodBodyTransformationInstance {
@@ -62,54 +62,64 @@ namespace PostEdge.Weaver.Transformations {
             }
 
             public override void Implement(MethodBodyTransformationContext context) {
-                
-                var npcBlock = context.InstructionBlock;
-                var methodBody = npcBlock.MethodBody;
+                AddOnPropertyChangedInvocation(context);
+            }
+
+            private void AddOnPropertyChangedInvocation(MethodBodyTransformationContext context) {
+                var property = _property;
+                var propertyType = property.PropertyType;
                 var module = _property.Module;
                 var onPropertyChangedMethod = FindOnPropertyChangedWithStringParameter(module);
-                
                 if(onPropertyChangedMethod == null) return;
-                
-                AddSymJoinPoint(context);
+                var methodBody = context.InstructionBlock.MethodBody;
+                methodBody.InitLocalVariables = true;
+                Instruction firstInstruction = null;
+                Instruction lastInstruction = null;
+                InstructionBlock firstBlockWithInstruction = null;
+                InstructionBlock lastBlockWithInstruction = null;
+                InstructionSequence firstSequenceWithInstruction = null;
+                InstructionSequence lastSequenceWithInstruction = null;
+                methodBody.ForEachInstruction(rdr => {
+                    if (firstInstruction == null) {
+                        firstInstruction = rdr.CurrentInstruction;
+                        firstSequenceWithInstruction = rdr.CurrentInstructionSequence;
+                        firstBlockWithInstruction = rdr.CurrentInstructionBlock;
+                    }
+                    lastInstruction = rdr.CurrentInstruction;
+                    lastSequenceWithInstruction = rdr.CurrentInstructionSequence;
+                    lastBlockWithInstruction = rdr.CurrentInstructionBlock;
+                    return true;
+                });
 
-                var weavingHelper = Transformation.AspectInfrastructureTask.WeavingHelper;
-                var returnBlock = methodBody.CreateInstructionBlock();
-                var sequence = methodBody.CreateInstructionSequence();
-                var returnSequence = methodBody.CreateInstructionSequence();
-                npcBlock.AddInstructionSequence(sequence, NodePosition.After, npcBlock.FindFirstInstructionSequence());
-                npcBlock.AddInstructionSequence(returnSequence, NodePosition.After, sequence);
-                //context.LeaveBranchTarget.Redirect(returnSequence);
+                if(lastSequenceWithInstruction == null) return;
+                AddSymJoinPoint(context);
+                var reader = methodBody.CreateInstructionReader(true);
+                reader.JumpToInstructionBlock(lastBlockWithInstruction);
+                reader.EnterInstructionSequence(lastSequenceWithInstruction);
+                InstructionSequence sequence = null;
+                InstructionSequence before = null;
+                InstructionSequence after = null;
+                while(reader.ReadInstruction()) {
+                    if(reader.CurrentInstruction == lastInstruction) {
+                        lastSequenceWithInstruction.SplitAroundReaderPosition(reader, out before, out after);
+                    }
+                }
+                if (sequence == null) {
+                    sequence = lastBlockWithInstruction.AddInstructionSequence(null, NodePosition.Before,
+                                                                               lastSequenceWithInstruction);
+                }
                 var writer = new InstructionWriter();
                 writer.AttachInstructionSequence(sequence);
                 //writer.EmitInstructionString();
                 writer.EmitInstruction(OpCodeNumber.Ldarg_0);
-                writer.EmitInstructionString(OpCodeNumber.Ldstr, _property.Name);                
+                writer.EmitInstructionString(OpCodeNumber.Ldstr, _property.Name);
                 //writer.EmitInstructionLocalVariable();
-                if(onPropertyChangedMethod.IsVirtual) {
+                if (onPropertyChangedMethod.IsVirtual) {
                     writer.EmitInstructionMethod(OpCodeNumber.Callvirt, onPropertyChangedMethod);
-                }else {
+                } else {
                     writer.EmitInstructionMethod(OpCodeNumber.Call, onPropertyChangedMethod);
                 }
                 writer.DetachInstructionSequence();
-            }
-
-            private void RedirectReturnTrial(MethodBodyTransformationContext context) {
-                AddSymJoinPoint(context);
-                var npcBlock = context.InstructionBlock;
-                var methodBody = npcBlock.MethodBody;
-                var reader = methodBody.CreateInstructionReader(true);
-                var weavingHelper = Transformation.AspectInfrastructureTask.WeavingHelper;
-                //var returnBlock = methodBody.CreateInstructionBlock();
-                var returnSequence = methodBody.CreateInstructionSequence();
-                context.LeaveBranchTarget.ParentInstructionBlock.AddInstructionSequence(returnSequence, NodePosition.After, context.LeaveBranchTarget);
-                //returnBlock.Comment = "PostEdge New Return Block";
-                var writer = new InstructionWriter();
-                writer.AttachInstructionSequence(returnSequence);
-                writer.EmitInstruction(OpCodeNumber.Nop);
-                writer.EmitInstruction(OpCodeNumber.Ret);
-                writer.DetachInstructionSequence();
-
-                weavingHelper.RedirectReturnInstructions(reader, writer, context.LeaveBranchTarget.ParentInstructionBlock, returnSequence, null, false);                
             }
 
             public override MethodBodyTransformationOptions GetOptions(MetadataDeclaration originalTargetElement, MethodSemantics semantic) {
@@ -128,6 +138,6 @@ namespace PostEdge.Weaver.Transformations {
                     );
                 return invoker;
             }
-        }        
+        }
     }
 }

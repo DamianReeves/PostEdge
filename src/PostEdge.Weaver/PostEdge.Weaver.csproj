@@ -53,7 +53,8 @@
     <Compile Include="EnhancePropertySetterAdviceWeaver.cs" />
     <Compile Include="Extensions\CodeWriterExtensions.cs" />
     <Compile Include="Extensions\InstructionBlockExtensions.cs" />
-    <Compile Include="PostEdgeWeavingHelper.cs" />
+    <Compile Include="CodeModel\MethodBodyInstructionVisitor.cs" />
+    <Compile Include="PostEdgeWeaverAssets.cs" />
     <Compile Include="NotifyPropertyChangedAspectWeaver.cs" />
     <Compile Include="Transformations\GuardPropertyEqualityTransformation.cs" />
     <Compile Include="Extensions\InstructionWriterExtensions.cs" />

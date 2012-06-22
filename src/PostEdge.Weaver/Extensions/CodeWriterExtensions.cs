@@ -203,7 +203,7 @@ namespace PostEdge.Weaver.Extensions
         {
             var module = type.Module;
             weavingHelper = weavingHelper ?? new WeavingHelper(module);
-            var pEWeavingHelper = module.Cache.GetItem(() => new PostEdgeWeavingHelper(module));
+            var pEWeavingHelper = module.Cache.GetItem(() => new PostEdgeWeaverAssets(module));
 
             var method = new MethodDefDeclaration{
                 Attributes = methodAttributes,
@@ -305,7 +305,7 @@ namespace PostEdge.Weaver.Extensions
         {
             var module = type.Module;
             weavingHelper = weavingHelper ?? new WeavingHelper(module);
-            var pEWeavingHelper = module.Cache.GetItem(() => new PostEdgeWeavingHelper(module));
+            var pEWeavingHelper = module.Cache.GetItem(() => new PostEdgeWeaverAssets(module));
     
             var method = new MethodDefDeclaration {
                 Attributes = methodAttributes,

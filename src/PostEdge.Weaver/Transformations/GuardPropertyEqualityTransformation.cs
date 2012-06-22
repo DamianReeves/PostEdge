@@ -14,7 +14,8 @@ namespace PostEdge.Weaver.Transformations {
     internal sealed class GuardPropertyEqualityTransformation : MethodBodyTransformation {
         private readonly TransformationAssets _assets;
 
-        public GuardPropertyEqualityTransformation(AspectWeaver aspectWeaver) : base(aspectWeaver) {
+        public GuardPropertyEqualityTransformation(AspectWeaver aspectWeaver)
+            : base(aspectWeaver) {
             //Initialize Transformation fields
             var module = AspectInfrastructureTask.Project.Module;
             _assets = module.Cache.GetItem(() => new TransformationAssets(module));
@@ -84,97 +85,41 @@ namespace PostEdge.Weaver.Transformations {
             }
 
             public override void Implement(MethodBodyTransformationContext context) {
-                AddSymJoinPoint(context);     
-                //AddGuard(context);
-                context.InstructionBlock.MethodBody.Visit(new IMethodBodyVisitor[] { new Visitor(this, context) });
+                AddSymJoinPoint(context);
+                AddGuard(context);
+                //context.InstructionBlock.MethodBody.Visit(new IMethodBodyVisitor[] { new Visitor(this, context) });
             }
-
             private void AddGuard(MethodBodyTransformationContext context) {
                 var property = Property;
                 var propertyType = property.PropertyType;
 
-                var weavingHelper = _transformation.AspectInfrastructureTask.WeavingHelper;
                 var methodBody = context.InstructionBlock.MethodBody;
-                var originalBlock = context.InstructionBlock;
-                var txRootBlock = context.InstructionBlock.Nest();
-                var guardBlock = methodBody.CreateInstructionBlock();
-                guardBlock.Comment = "Start of Block - Guard Property Equality";                
-                txRootBlock.AddChildBlock(guardBlock, NodePosition.Before, originalBlock);
-                var guardSequence = methodBody.CreateInstructionSequence();
-                guardBlock.AddInstructionSequence(guardSequence, NodePosition.After, null);
+                methodBody.InitLocalVariables = true;
+                Instruction firstInstruction;
+                InstructionBlock firstBlockWithInstruction = null;
+                InstructionSequence firstSequenceWithInstruction = null;
+                methodBody.ForEachInstruction(rdr => {
+                    //if (rdr.CurrentInstruction != null && rdr.CurrentInstruction.OpCodeNumber == OpCodeNumber.Nop)
+                    //    return true;
+                    firstInstruction = rdr.CurrentInstruction;
+                    firstSequenceWithInstruction = rdr.CurrentInstructionSequence;
+                    firstBlockWithInstruction = rdr.CurrentInstructionBlock;
+                    //firstSequenceWithInstruction.SplitAroundReaderPosition(rdr, out beforeSequence, out afterSequence);
+                    return false;
+                });
 
-                var endBlock = txRootBlock.AddChildBlock(null, NodePosition.After, originalBlock);
-                var endSequence = methodBody.CreateInstructionSequence();                
-                endBlock.AddInstructionSequence(endSequence, NodePosition.After, null);
+                if(firstSequenceWithInstruction == null) return;
+                var beforeSequence = firstBlockWithInstruction
+                    .AddInstructionSequence(null, NodePosition.Before,firstSequenceWithInstruction);
 
-                var reader = methodBody.CreateInstructionReader();
-                var writer = new InstructionWriter();    
-            
-                //Add Guard code
-                writer.AttachInstructionSequence(guardSequence);
-                weavingHelper.WriteLine("Beginning of AddGuard", writer);               
-                writer.DetachInstructionSequence();
+                var isLocationBinding = CheckIfIsLocationBinding(methodBody);
+                var writer = new InstructionWriter();
+                if(beforeSequence != null) {
+                    var oldValueVariable = firstBlockWithInstruction
+                        .DefineLocalVariable(propertyType, string.Format("old{0}Value",property.Name));
 
-                //Make sure properly redirected
-                methodBody.RootInstructionBlock.RedirectBranchInstructions(reader, writer, endSequence
-                    //, inst=> inst.BranchTargetOperand == context.LeaveBranchTarget
-                );
-
-                writer.AttachInstructionSequence(endSequence);
-                weavingHelper.WriteLine("Ending of AddGuard",writer);     
-                //txRootBlock.MoveInstructionBlock();
-                writer.DetachInstructionSequence();
-            }
-
-            private bool CheckIfIsLocationBinding(MethodBodyDeclaration methodBody) {
-                bool isLocationBinding = methodBody.Method.Name == "SetValue"
-                        && methodBody.Method.DeclaringType.IsDerivedFrom(Assets.LocationBindingTypeSignature.GetTypeDefinition());
-                return isLocationBinding;
-            }
-
-            private sealed class Visitor : IMethodBodyVisitor {
-                private readonly TransformationInstance _transformationInstance;
-                private readonly MethodBodyTransformationContext _context;
-                private InstructionBlock _targetBlock;
-                public TransformationAssets Assets { get { return _transformationInstance.Assets; } }                
-
-                public Visitor(TransformationInstance transformationInstance, MethodBodyTransformationContext context) {
-                    _transformationInstance = transformationInstance;
-                    _context = context;
-                }
-                public void EnterInstructionBlock(InstructionBlock instructionBlock, InstructionBlockExceptionHandlingKind exceptionHandlingKind) {
-                    if(_targetBlock != null) return;
-                    _targetBlock = instructionBlock;
-                    _context.InstructionBlock.MethodBody.InitLocalVariables = true;
-                    var firstChildBlock = _targetBlock.FirstChildBlock;
-                    var property = _transformationInstance.Property;
-                    var propertyType = property.PropertyType;
-                    bool isLocationBinding = _transformationInstance.CheckIfIsLocationBinding(_targetBlock.MethodBody);
-
-                    WeaveEqualityCheck(isLocationBinding, property, propertyType, firstChildBlock);
-                }                
-
-                public void LeaveInstructionBlock(InstructionBlock instructionBlock, InstructionBlockExceptionHandlingKind exceptionHandlingKind) { }
-                public void EnterInstructionSequence(InstructionSequence instructionSequence) { }
-                public void LeaveInstructionSequence(InstructionSequence instructionSequence) { }
-                public void EnterExceptionHandler(ExceptionHandler exceptionHandler) { }
-                public void LeaveExceptionHandler(ExceptionHandler exceptionHandler) { }
-
-                public void VisitInstruction(InstructionReader instructionReader) {}
-
-                private void WeaveEqualityCheck(bool isLocationBinding, PropertyDeclaration property, ITypeSignature propertyType, InstructionBlock firstChildBlock) {
-                    var oldValueVariable = _targetBlock.DefineLocalVariable(propertyType, string.Empty);
-                    var equalityCheckBlock = _targetBlock.AddChildBlock(null, NodePosition.Before, firstChildBlock);
-                    equalityCheckBlock.Comment = "Equality Check";
-                    var originalStartSequence = equalityCheckBlock.FindFirstInstructionSequence();
-                    var sequence = equalityCheckBlock.AddInstructionSequence(
-                        null, NodePosition.Before, originalStartSequence);
-                    //var endSequence = _context.LeaveBranchTarget.ParentInstructionBlock.AddInstructionSequence(null, NodePosition.Before,
-                    //                                                            _context.LeaveBranchTarget);
-                    var endSequence = _context.LeaveBranchTarget;
-                    var writer = new InstructionWriter();
-                    writer.AttachInstructionSequence(sequence);
-                    if (isLocationBinding) {
+                    writer.AttachInstructionSequence(beforeSequence);
+                    if(isLocationBinding) {
                         writer.AssignValue_LocalVariable(oldValueVariable
                             , () => writer.Call_MethodOnTarget(property.GetGetter(),
                                 () => {
@@ -187,16 +132,11 @@ namespace PostEdge.Weaver.Transformations {
                                 }
                             )
                         );
-                        //writer.AssignValue_LocalVariable(oldValueVariable,
-                        //                                 () => writer.Get_PropertyValue(property));
-                    } else {
-                        writer.AssignValue_LocalVariable(oldValueVariable,
-                                                         () => writer.Get_PropertyValue(property));
-                    }
-                    if (isLocationBinding) {
                         //On the location binding the value parameter is at psotion 3
                         writer.EmitInstruction(OpCodeNumber.Ldarg_3);
-                    } else {
+                    }else {
+                        writer.AssignValue_LocalVariable(oldValueVariable,
+                                                         () => writer.Get_PropertyValue(property));
                         //For a normal property the value parameter is at position 1
                         writer.EmitInstruction(OpCodeNumber.Ldarg_1);
                     }
@@ -212,10 +152,16 @@ namespace PostEdge.Weaver.Transformations {
                         writer.Compare_Objects(Assets.ObjectEqualsMethod);
                     }
                     //writer.Leave_IfTrue(_context.LeaveBranchTarget);
-                    writer.Leave_IfTrue(endSequence);
-                    //writer.EmitBranchingInstruction(OpCodeNumber.Brfalse, originalStartSequence);
+                    writer.Leave_IfTrue(context.LeaveBranchTarget);
                     writer.DetachInstructionSequence();
                 }
+
+            }
+            
+            private bool CheckIfIsLocationBinding(MethodBodyDeclaration methodBody) {
+                bool isLocationBinding = methodBody.Method.Name == "SetValue"
+                        && methodBody.Method.DeclaringType.IsDerivedFrom(Assets.LocationBindingTypeSignature.GetTypeDefinition());
+                return isLocationBinding;
             }
         }
     }

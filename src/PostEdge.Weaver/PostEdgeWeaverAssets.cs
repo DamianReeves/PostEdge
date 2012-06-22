@@ -3,26 +3,26 @@ using System.Diagnostics;
 using PostSharp.Sdk.CodeModel;
 
 namespace PostEdge.Weaver {
-    public class PostEdgeWeavingHelper {
+    public class PostEdgeWeaverAssets {
         private readonly ModuleDeclaration _module;
         private readonly Lazy<IMethod> _delegateCombineMethod;
         private readonly Lazy<IMethod> _delegateRemoveMethod;
         private readonly Lazy<IMethod> _compareExchangeMethod;
 
-        public PostEdgeWeavingHelper(ModuleDeclaration module) {
+        public PostEdgeWeaverAssets(ModuleDeclaration module) {
             if (module == null) throw new ArgumentNullException("module");
             _module = module;
             _delegateCombineMethod =
                 new Lazy<IMethod>(() => {
                     var method = _module.FindMethod("System.Delegate, mscorlib", "Combine", "System.Delegate, mscorlib","System.Delegate, mscorlib");
-                    Debug.Assert(method != null, "Could not find Delegate.Combine used by PostEdgeWeavingHelper.");
+                    Debug.Assert(method != null, "Could not find Delegate.Combine used by PostEdgeWeaverAssets.");
                     return method;
                 });
 
             _delegateRemoveMethod =
                 new Lazy<IMethod>(() => {
                     var method = _module.FindMethod("System.Delegate, mscorlib", "Remove", "System.Delegate, mscorlib", "System.Delegate, mscorlib");
-                    Debug.Assert(method != null, "Could not find Delegate.Remove used by PostEdgeWeavingHelper.");
+                    Debug.Assert(method != null, "Could not find Delegate.Remove used by PostEdgeWeaverAssets.");
                     return method;
                 });
 
@@ -30,7 +30,7 @@ namespace PostEdge.Weaver {
                 new Lazy<IMethod>(() => {
                     var method = _module.FindMethod("System.Threading.Interlocked, mscorlib", "CompareExchange", 
                         methodDef => methodDef.IsGenericDefinition);
-                    Debug.Assert(method != null, "System.Threading.Interlocked.CompareExchange used by PostEdgeWeavingHelper.");
+                    Debug.Assert(method != null, "System.Threading.Interlocked.CompareExchange used by PostEdgeWeaverAssets.");
                     return method;
                 });
         }
