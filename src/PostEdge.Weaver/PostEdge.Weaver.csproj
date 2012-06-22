@@ -50,6 +50,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CodeModel\InstructionContext.cs" />
     <Compile Include="EnhancePropertySetterAdviceWeaver.cs" />
     <Compile Include="Extensions\CodeWriterExtensions.cs" />
     <Compile Include="Extensions\InstructionBlockExtensions.cs" />

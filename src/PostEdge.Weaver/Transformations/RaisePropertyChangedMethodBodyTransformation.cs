@@ -1,5 +1,7 @@
 using System.Text;
 using PostEdge.Aspects.Dependencies;
+using PostEdge.Weaver.CodeModel;
+using PostEdge.Weaver.Extensions;
 using PostSharp.Aspects.Dependencies;
 using PostSharp.Sdk.AspectInfrastructure;
 using PostSharp.Sdk.AspectInfrastructure.Dependencies;
@@ -71,42 +73,45 @@ namespace PostEdge.Weaver.Transformations {
                 var module = _property.Module;
                 var onPropertyChangedMethod = FindOnPropertyChangedWithStringParameter(module);
                 if(onPropertyChangedMethod == null) return;
-                var methodBody = context.InstructionBlock.MethodBody;
+                var methodBody = context.InstructionBlock.MethodBody;                 
                 methodBody.InitLocalVariables = true;
-                Instruction firstInstruction = null;
-                Instruction lastInstruction = null;
-                InstructionBlock firstBlockWithInstruction = null;
-                InstructionBlock lastBlockWithInstruction = null;
-                InstructionSequence firstSequenceWithInstruction = null;
-                InstructionSequence lastSequenceWithInstruction = null;
+
+                InstructionContext first = null;
+                InstructionContext last = null;
+                InstructionContext lastBeforeReturn = null;
+
                 methodBody.ForEachInstruction(rdr => {
-                    if (firstInstruction == null) {
-                        firstInstruction = rdr.CurrentInstruction;
-                        firstSequenceWithInstruction = rdr.CurrentInstructionSequence;
-                        firstBlockWithInstruction = rdr.CurrentInstructionBlock;
+                    if (first == null) {
+                        first = new InstructionContext(rdr);
                     }
-                    lastInstruction = rdr.CurrentInstruction;
-                    lastSequenceWithInstruction = rdr.CurrentInstructionSequence;
-                    lastBlockWithInstruction = rdr.CurrentInstructionBlock;
+                    last = new InstructionContext(rdr);
+                    if (rdr.CurrentInstruction.OpCodeNumber != OpCodeNumber.Ret ) {
+                        lastBeforeReturn = new InstructionContext(rdr);
+                    }
                     return true;
                 });
 
-                if(lastSequenceWithInstruction == null) return;
+                if(lastBeforeReturn == null) return;
                 AddSymJoinPoint(context);
                 var reader = methodBody.CreateInstructionReader(true);
-                reader.JumpToInstructionBlock(lastBlockWithInstruction);
-                reader.EnterInstructionSequence(lastSequenceWithInstruction);
+                reader.JumpToInstructionBlock(lastBeforeReturn.InstructionBlock);
+                reader.EnterInstructionSequence(lastBeforeReturn.InstructionSequence);
                 InstructionSequence sequence = null;
                 InstructionSequence before = null;
                 InstructionSequence after = null;
                 while(reader.ReadInstruction()) {
-                    if(reader.CurrentInstruction == lastInstruction) {
-                        lastSequenceWithInstruction.SplitAroundReaderPosition(reader, out before, out after);
+                    if(reader.CurrentInstruction.IsEquivalentTo(lastBeforeReturn.Instruction)) {
+                        lastBeforeReturn
+                            .InstructionSequence
+                            .SplitAroundReaderPosition(reader, out before, out after);
+                        sequence = before??after;
                     }
                 }
                 if (sequence == null) {
-                    sequence = lastBlockWithInstruction.AddInstructionSequence(null, NodePosition.Before,
-                                                                               lastSequenceWithInstruction);
+                    sequence = 
+                        lastBeforeReturn
+                            .InstructionBlock
+                            .AddInstructionSequence(null, NodePosition.Before,lastBeforeReturn.InstructionSequence);
                 }
                 var writer = new InstructionWriter();
                 writer.AttachInstructionSequence(sequence);
