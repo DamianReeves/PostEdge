@@ -63,6 +63,7 @@
     <Compile Include="GuardPropertyEqualityAspectWeaver.cs" />
     <Compile Include="PostEdgePlugIn.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Transformations\EnhancePropertySetterMethodBodyTransformation.cs" />
     <Compile Include="Transformations\MemberIntroductionTransformation.cs" />
     <Compile Include="Transformations\NotifyPropertyChangedStructuralTransformation.cs" />
     <Compile Include="Transformations\RaisePropertyChangedMethodBodyTransformation.cs" />

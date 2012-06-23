@@ -38,20 +38,26 @@ namespace PostEdge.Weaver {
         private sealed class MyAdviceGroup : AdviceGroup {
             private GuardPropertyEqualityTransformation _guardEqualityTransformation;
             private RaisePropertyChangedMethodBodyTransformation _raisePropertyChangedMethodBodyTransformation;
-            private TransformationOptions _transformationOptions;
+            private EnhancePropertySetterMethodBodyTransformation _enhancePropertySetterMethodBodyTransformation;
+
+            private EnhanceSetterTransformationOptions _enhanceSetterTransformationOptions;
             public MyAdviceGroup(AdviceWeaver parent) : base(parent) {}
 
             protected override void Initialize() {
                 base.Initialize();
                 //At this point Annotations is populated
-                _transformationOptions = GetTransformationOptions();
-                if (_transformationOptions == null) return;
-                if (_transformationOptions.InvokePropertyChanged) {
+                _enhanceSetterTransformationOptions = GetTransformationOptions();
+                if (_enhanceSetterTransformationOptions == null) return;
+                if (_enhanceSetterTransformationOptions.InvokePropertyChanged) {
                     _raisePropertyChangedMethodBodyTransformation = 
                         new RaisePropertyChangedMethodBodyTransformation(AdviceWeaver.AspectWeaver);
                     PrepareTransformation(_raisePropertyChangedMethodBodyTransformation);
+
+                    _enhancePropertySetterMethodBodyTransformation =
+                        new EnhancePropertySetterMethodBodyTransformation(AdviceWeaver.AspectWeaver);
+                    PrepareTransformation(_enhancePropertySetterMethodBodyTransformation);
                 }
-                if (_transformationOptions.CheckEquality) {
+                if (_enhanceSetterTransformationOptions.CheckEquality) {
                     _guardEqualityTransformation = 
                         new GuardPropertyEqualityTransformation(AdviceWeaver.AspectWeaver);
                     PrepareTransformation(_guardEqualityTransformation);
@@ -59,12 +65,12 @@ namespace PostEdge.Weaver {
             }
 
             public override void ProvideTransformations(AspectWeaverInstance aspectWeaverInstance, AspectWeaverTransformationAdder adder) {
-                if (_transformationOptions == null || !_transformationOptions.ShouldTransform()) return;
+                if (_enhanceSetterTransformationOptions == null || !_enhanceSetterTransformationOptions.ShouldTransform()) return;
                 var type = aspectWeaverInstance.TargetElement as IType;
                 if (type == null) return;
                 var typeDef = type.GetTypeDefinition();
                 //Get all non-static properties declared on this type
-                var method = typeDef.GetMethodsBySignature(_transformationOptions.Signatures);
+                var method = typeDef.GetMethodsBySignature(_enhanceSetterTransformationOptions.Signatures);
                 var properties =
                     from property in typeDef.Properties
                     where property.CanWrite
@@ -73,41 +79,47 @@ namespace PostEdge.Weaver {
                           && property.DeclaringType != null
                           && property.DeclaringType.Equals(typeDef)
                     select property;
-                foreach (var property in properties) {                    
-                    if (_transformationOptions.InvokePropertyChanged) {
-                        //TODO: If NoChangeNotification attribute is specified then skip this transformation
-                        adder.Add(property.Setter,
-                            _raisePropertyChangedMethodBodyTransformation.CreateInstance(property, aspectWeaverInstance));
-                    }
-                    if (_transformationOptions.CheckEquality) {
-                        adder.Add(property.Setter,
-                                  _guardEqualityTransformation.CreateInstance(property, aspectWeaverInstance));
-                    }                    
+                foreach (var property in properties) {
+                    var txContext = new EnhanceSetterTransformationContext(property, _enhanceSetterTransformationOptions);
+                    //TODO: If NoChangeNotification attribute is specified then skip this transformation
+                    adder.Add(property.Setter,
+                            _enhancePropertySetterMethodBodyTransformation.CreateInstance(txContext, aspectWeaverInstance));
                 }
             }
 
-            private TransformationOptions GetTransformationOptions() {
+            private EnhanceSetterTransformationOptions GetTransformationOptions() {
                 var annotations =
                     from attrib in Annotations.Select(x => x.Value.ConstructRuntimeObject<EnhancePropertySetterAttribute>())
-                    select new TransformationOptions {
+                    select new EnhanceSetterTransformationOptions {
                         CheckEquality = attrib.CheckEquality,
                         InvokePropertyChanged = attrib.InvokePropertyChanged,
                         Signatures = attrib.PropertyChangedMethodNames.Split(new[]{',',';'},StringSplitOptions.RemoveEmptyEntries)
                     };
                 return annotations.FirstOrDefault();
-            }
+            }            
+        }
+    }
 
-            
+    internal sealed class EnhanceSetterTransformationContext {
+        public EnhanceSetterTransformationContext(PropertyDeclaration property, EnhanceSetterTransformationOptions transformationOptions) {
+            if (property == null) throw new ArgumentNullException("property");
+            if (transformationOptions == null) throw new ArgumentNullException("transformationOptions");
+            Property = property;
+            TransformationOptions = transformationOptions;
+        }
 
-            private sealed class TransformationOptions {
-                public bool CheckEquality { get; set; }
-                public bool InvokePropertyChanged { get; set; }
-                public string[] Signatures { get; set; }
+        public PropertyDeclaration Property { get; private set; }
+        public EnhanceSetterTransformationOptions TransformationOptions { get; private set; }
+        public ModuleDeclaration Module { get { return Property.Module; } }
+    }
 
-                public bool ShouldTransform() {
-                    return CheckEquality || InvokePropertyChanged;
-                }
-            }
+    internal sealed class EnhanceSetterTransformationOptions {
+        public bool CheckEquality { get; set; }
+        public bool InvokePropertyChanged { get; set; }
+        public string[] Signatures { get; set; }
+
+        public bool ShouldTransform() {
+            return CheckEquality || InvokePropertyChanged;
         }
     }
 }
