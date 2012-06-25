@@ -84,13 +84,22 @@ namespace PostEdge.Weaver.Transformations {
                 : base(task, context) {
                 if (transformationContext == null) throw new ArgumentNullException("transformationContext");
                 _transformationContext = transformationContext;
-                _transformationContext.Module.Cache.GetItem(
-                    () => new TransformationAssets(_transformationContext.Module));
+                _assets = 
+                    _transformationContext.Module.Cache.GetItem(
+                        () => new TransformationAssets(_transformationContext.Module));
                 _stringTypeSignature = _transformationContext.Module.Cache.GetIntrinsic(typeof (string));
             }
 
+            public TransformationAssets Assets {
+                get { return _assets; }
+            }
+
+            public PropertyDeclaration Property {
+                get { return _transformationContext.Property; }
+            }
+
             public void Execute() {
-                Implement(false, true, false, null);
+                Implement(true, true, false, null);
                 Context.AddRedirection(Redirection);
             }
 
@@ -102,6 +111,15 @@ namespace PostEdge.Weaver.Transformations {
             }
 
             protected override void ImplementOnSuccess(InstructionBlock block, InstructionWriter writer) {
+                RaisePropertyChangedEvent(block, writer);
+            }
+
+            protected override void ImplementOnEntry(InstructionBlock block, InstructionWriter writer) {
+                //TODO: Move the equality guard creation code to here... we can then greatly refactor the code
+                AddGuard(block,writer);
+            }
+
+            private void RaisePropertyChangedEvent(InstructionBlock block, InstructionWriter writer) {
                 var onPropertyChangedMethod = FindOnPropertyChangedWithStringParameter();
                 if (onPropertyChangedMethod == null) return;
 
@@ -113,14 +131,63 @@ namespace PostEdge.Weaver.Transformations {
                 //writer.EmitInstructionLocalVariable();
                 if (onPropertyChangedMethod.IsVirtual) {
                     writer.EmitInstructionMethod(OpCodeNumber.Callvirt, onPropertyChangedMethod);
-                } else {
+                }
+                else {
                     writer.EmitInstructionMethod(OpCodeNumber.Call, onPropertyChangedMethod);
                 }
                 writer.DetachInstructionSequence();
             }
 
-            protected override void ImplementOnEntry(InstructionBlock block, InstructionWriter writer) {
-                //TODO: Move the equality guard creation code to here... we can then greatly refactor the code
+            private void AddGuard(InstructionBlock block, InstructionWriter writer) {
+                var property = Property;
+                var propertyType = property.PropertyType;
+
+                var methodBody = block.MethodBody;
+                
+                var isLocationBinding = CheckIfIsLocationBinding(methodBody);
+                var beforeSequence = block.AddInstructionSequence(null, NodePosition.After, null);
+                if (beforeSequence != null) {
+                    var oldValueVariable = 
+                        block.DefineLocalVariable(propertyType, string.Format("old{0}Value", property.Name));
+
+                    writer.AttachInstructionSequence(beforeSequence);
+                    if (isLocationBinding) {
+                        writer.AssignValue_LocalVariable(oldValueVariable
+                            , () => writer.Call_MethodOnTarget(property.GetGetter(),
+                                () => {
+                                    //Load the instance parameter of the SetValue method
+                                    //and convert it to the type
+                                    writer.EmitInstruction(OpCodeNumber.Ldarg_1);
+                                    //writer.EmitInstructionLoadIndirect(Assets.ObjectTypeSignature);
+                                    writer.EmitInstructionType(OpCodeNumber.Ldobj, Assets.ObjectTypeSignature);
+                                    writer.EmitConvertFromObject(property.Parent);
+                                }
+                            )
+                        );
+                        //On the location binding the value parameter is at psotion 3
+                        writer.EmitInstruction(OpCodeNumber.Ldarg_3);
+                    } else {
+                        writer.AssignValue_LocalVariable(oldValueVariable,
+                                                         () => writer.Get_PropertyValue(property));
+                        //For a normal property the value parameter is at position 1
+                        writer.EmitInstruction(OpCodeNumber.Ldarg_1);
+                    }
+                    if (propertyType.IsStruct()) {
+                        writer.EmitInstructionType(OpCodeNumber.Box, propertyType);
+                    }
+                    writer.Box_LocalVariableIfNeeded(oldValueVariable);
+                    var isPrimitive = propertyType.IsPrimitive();
+                    if (isPrimitive) {
+                        writer.Compare_Primitives();
+                    } else {
+                        //TODO: Try and use the equality operator when present
+                        writer.Compare_Objects(Assets.ObjectEqualsMethod);
+                    }
+                    //writer.Leave_IfTrue(_context.LeaveBranchTarget);
+                    writer.Leave_IfTrue(Context.LeaveBranchTarget);
+                    writer.DetachInstructionSequence();
+                }
+
             }
 
             private IGenericMethodDefinition FindOnPropertyChangedWithStringParameter() {
@@ -133,6 +200,12 @@ namespace PostEdge.Weaver.Transformations {
                     && methodDef.Parameters[0].ParameterType.Equals(_stringTypeSignature)
                 );
                 return invoker;
+            }
+
+            private bool CheckIfIsLocationBinding(MethodBodyDeclaration methodBody) {
+                bool isLocationBinding = methodBody.Method.Name == "SetValue"
+                        && methodBody.Method.DeclaringType.IsDerivedFrom(Assets.LocationBindingTypeSignature.GetTypeDefinition());
+                return isLocationBinding;
             }
         }
     }
