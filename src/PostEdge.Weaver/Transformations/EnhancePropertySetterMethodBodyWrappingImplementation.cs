@@ -51,26 +51,18 @@ namespace PostEdge.Weaver.Transformations {
         }
 
         private void RaisePropertyChangedEvent(InstructionBlock block, InstructionWriter writer) {
-            var onPropertyChangedMethod = FindOnPropertyChangedWithStringParameter();
-            if (onPropertyChangedMethod == null) return;
-
-            var sequence = block.AddInstructionSequence(null, NodePosition.After, null);
-            writer.AttachInstructionSequence(sequence);
-            //writer.EmitInstructionString();
-            writer.EmitInstruction(OpCodeNumber.Ldarg_0);
-            writer.EmitInstructionString(OpCodeNumber.Ldstr, _transformationContext.Property.Name);
-            //writer.EmitInstructionLocalVariable();
-            if (onPropertyChangedMethod.IsVirtual) {
-                writer.EmitInstructionMethod(OpCodeNumber.Callvirt, onPropertyChangedMethod);
-            } else {
-                writer.EmitInstructionMethod(OpCodeNumber.Call, onPropertyChangedMethod);
-            }
-            writer.DetachInstructionSequence();
+            var invokerMethod = FindOnPropertyChangedWithStringParameter();
+            CallEventInvokerMethod(invokerMethod, block, writer);
         }
 
         private void RaisePropertyChangingEvent(InstructionBlock block, InstructionWriter writer) {
             var invokerMethod = FindOnPropertyChangingWithStringParameter();
-            if (invokerMethod == null) return;
+            CallEventInvokerMethod(invokerMethod, block,writer);
+        }
+
+        private void CallEventInvokerMethod(IMethod method, InstructionBlock block, InstructionWriter writer) {
+            if (method == null) return;
+            if (block.MethodBody.ContainsCallToMethod(method)) return;
 
             var sequence = block.AddInstructionSequence(null, NodePosition.After, null);
             writer.AttachInstructionSequence(sequence);
@@ -78,10 +70,10 @@ namespace PostEdge.Weaver.Transformations {
             writer.EmitInstruction(OpCodeNumber.Ldarg_0);
             writer.EmitInstructionString(OpCodeNumber.Ldstr, _transformationContext.Property.Name);
             //writer.EmitInstructionLocalVariable();
-            if (invokerMethod.IsVirtual) {
-                writer.EmitInstructionMethod(OpCodeNumber.Callvirt, invokerMethod);
+            if (method.IsVirtual) {
+                writer.EmitInstructionMethod(OpCodeNumber.Callvirt, method);
             } else {
-                writer.EmitInstructionMethod(OpCodeNumber.Call, invokerMethod);
+                writer.EmitInstructionMethod(OpCodeNumber.Call, method);
             }
             writer.DetachInstructionSequence();
         }

@@ -39,13 +39,5 @@ namespace PostEdge.Weaver.Extensions {
             }
             reader.LeaveInstructionBlock();
         }
-    }
-
-    public static class InstructionExtensions {
-        public static bool IsEquivalentTo(this Instruction @this, Instruction other) {
-            if (ReferenceEquals(@this, other)) return true;
-            if (@this == null || other == null) return false;
-            return (@this.ToString() == other.ToString());
-        }
-    }
+    }    
 }

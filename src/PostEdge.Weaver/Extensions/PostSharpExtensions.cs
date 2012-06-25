@@ -107,6 +107,27 @@ namespace PostEdge.Weaver.Extensions {
 
         #endregion
 
+        #region MethodBody methods
+        public static bool ContainsCallToMethod(this MethodBodyDeclaration methodBody, IMethod method) {
+            if (methodBody == null) throw new ArgumentNullException("methodBody");
+            bool containsCall = false;
+            methodBody.ForEachInstruction(reader=> {
+                var opCode = reader.CurrentInstruction.OpCodeNumber;
+                if(opCode == OpCodeNumber.Call || opCode == OpCodeNumber.Callvirt) {
+                    if(reader.CurrentInstruction.MethodOperand != null) {
+                        if(reader.CurrentInstruction.MethodOperand.Equals(method)) {
+                            containsCall = true;
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            });
+            return containsCall;
+        }
+
+        #endregion
+
         #region ITypeSignature methods
 
         public static ITypeSignature GetGenericInstance(this ITypeSignature source, ModuleDeclaration module, params ITypeSignature[] typeList)
