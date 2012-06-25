@@ -4,6 +4,7 @@ using PostEdge.Aspects.Dependencies;
 using PostEdge.Weaver.CodeModel;
 using PostEdge.Weaver.Extensions;
 using PostSharp.Aspects.Dependencies;
+using PostSharp.Aspects.Internals;
 using PostSharp.Sdk.AspectInfrastructure;
 using PostSharp.Sdk.AspectInfrastructure.Dependencies;
 using PostSharp.Sdk.AspectWeaver;
@@ -78,11 +79,13 @@ namespace PostEdge.Weaver.Transformations {
         private class SetterMethodBodyWrappingImplementation : MethodBodyWrappingImplementation {
             private readonly EnhanceSetterTransformationContext _transformationContext;
             private readonly ITypeSignature _stringTypeSignature;
-
+            private readonly TransformationAssets _assets;
             public SetterMethodBodyWrappingImplementation(EnhanceSetterTransformationContext transformationContext, AspectInfrastructureTask task, MethodBodyTransformationContext context) 
                 : base(task, context) {
                 if (transformationContext == null) throw new ArgumentNullException("transformationContext");
                 _transformationContext = transformationContext;
+                _transformationContext.Module.Cache.GetItem(
+                    () => new TransformationAssets(_transformationContext.Module));
                 _stringTypeSignature = _transformationContext.Module.Cache.GetIntrinsic(typeof (string));
             }
 
@@ -131,6 +134,21 @@ namespace PostEdge.Weaver.Transformations {
                 );
                 return invoker;
             }
+        }
+    }
+
+    internal sealed class TransformationAssets {
+        public IMethod ObjectEqualsMethod { get; private set; }
+        public ITypeSignature LocationBindingTypeSignature { get; private set; }
+        public IMethod SetValueMethod { get; private set; }
+        public IMethod GetValueMethod { get; private set; }
+        public ITypeSignature ObjectTypeSignature { get; private set; }
+        public TransformationAssets(ModuleDeclaration module) {
+            ObjectTypeSignature = module.FindType(typeof(object));
+            ObjectEqualsMethod = module.FindMethod(typeof(object).GetMethod("Equals", new[] { typeof(object), typeof(object) }), BindingOptions.Default);
+            LocationBindingTypeSignature = module.FindType(typeof(LocationBinding<>));
+            SetValueMethod = module.FindMethod(LocationBindingTypeSignature, "SetValue", x => x.DeclaringType.IsGenericDefinition);
+            GetValueMethod = module.FindMethod(LocationBindingTypeSignature, "GetValue", x => x.DeclaringType.IsGenericDefinition);
         }
     }
 }
