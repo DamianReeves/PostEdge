@@ -57,6 +57,7 @@
     <Compile Include="CodeModel\MethodBodyInstructionVisitor.cs" />
     <Compile Include="PostEdgeWeaverAssets.cs" />
     <Compile Include="NotifyPropertyChangedAspectWeaver.cs" />
+    <Compile Include="Transformations\GuardPropertyEqualityMethodBodyWrappingImplementation.cs" />
     <Compile Include="Transformations\GuardPropertyEqualityTransformation.cs" />
     <Compile Include="Extensions\InstructionWriterExtensions.cs" />
     <Compile Include="Extensions\PostSharpExtensions.cs" />
@@ -66,8 +67,10 @@
     <Compile Include="Transformations\EnhancePropertySetterMethodBodyTransformation.cs" />
     <Compile Include="Transformations\MemberIntroductionTransformation.cs" />
     <Compile Include="Transformations\NotifyPropertyChangedStructuralTransformation.cs" />
-    <Compile Include="Transformations\RaisePropertyChangedMethodBodyTransformation.cs" />
+    <Compile Include="Transformations\EnhancePropertySetterMethodBodyWrappingImplementation.cs" />
+    <Compile Include="Transformations\PropertyNotificationAssets.cs" />
     <Compile Include="Transformations\StructuralTransformationInstance.cs" />
+    <Compile Include="Transformations\TransformationAssets.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PostEdge\PostEdge.csproj">

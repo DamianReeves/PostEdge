@@ -36,8 +36,6 @@ namespace PostEdge.Weaver {
         }
 
         private sealed class MyAdviceGroup : AdviceGroup {
-            private GuardPropertyEqualityTransformation _guardEqualityTransformation;
-            private RaisePropertyChangedMethodBodyTransformation _raisePropertyChangedMethodBodyTransformation;
             private EnhancePropertySetterMethodBodyTransformation _enhancePropertySetterMethodBodyTransformation;
 
             private EnhanceSetterTransformationOptions _enhanceSetterTransformationOptions;
@@ -48,19 +46,10 @@ namespace PostEdge.Weaver {
                 //At this point Annotations is populated
                 _enhanceSetterTransformationOptions = GetTransformationOptions();
                 if (_enhanceSetterTransformationOptions == null) return;
-                if (_enhanceSetterTransformationOptions.InvokePropertyChanged) {
-                    _raisePropertyChangedMethodBodyTransformation = 
-                        new RaisePropertyChangedMethodBodyTransformation(AdviceWeaver.AspectWeaver);
-                    PrepareTransformation(_raisePropertyChangedMethodBodyTransformation);
-
+                if (_enhanceSetterTransformationOptions.InvokePropertyChanged || _enhanceSetterTransformationOptions.CheckEquality) {                    
                     _enhancePropertySetterMethodBodyTransformation =
                         new EnhancePropertySetterMethodBodyTransformation(AdviceWeaver.AspectWeaver);
                     PrepareTransformation(_enhancePropertySetterMethodBodyTransformation);
-                }
-                if (_enhanceSetterTransformationOptions.CheckEquality) {
-                    _guardEqualityTransformation = 
-                        new GuardPropertyEqualityTransformation(AdviceWeaver.AspectWeaver);
-                    PrepareTransformation(_guardEqualityTransformation);
                 }                
             }
 
@@ -100,7 +89,7 @@ namespace PostEdge.Weaver {
         }
     }
 
-    internal sealed class EnhanceSetterTransformationContext {
+    internal sealed class EnhanceSetterTransformationContext : IPropertyTransformationContext {
         public EnhanceSetterTransformationContext(PropertyDeclaration property, EnhanceSetterTransformationOptions transformationOptions) {
             if (property == null) throw new ArgumentNullException("property");
             if (transformationOptions == null) throw new ArgumentNullException("transformationOptions");
@@ -121,5 +110,10 @@ namespace PostEdge.Weaver {
         public bool ShouldTransform() {
             return CheckEquality || InvokePropertyChanged;
         }
+    }
+
+    public interface IPropertyTransformationContext {
+        PropertyDeclaration Property { get; }
+        ModuleDeclaration Module { get; }
     }
 }

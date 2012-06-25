@@ -21,6 +21,18 @@ namespace PostEdge.Aspects {
     [ProvideAspectRole(StandardRoles.DataBinding)]
     [AspectRoleDependency(AspectDependencyAction.Commute, PostEdgeStandardRoles.NotifyPropertyChanged)]
     public sealed class NotifyPropertyChangedAttribute : TypeLevelAspect, INotifyPropertyChangedAspect {
+        private PropertyNotificationTypes _changeNotificationTypes = PropertyNotificationTypes.Both;
+        public PropertyNotificationTypes ChangeNotificationTypes {
+            get { return _changeNotificationTypes; }
+            set { _changeNotificationTypes = value; }
+        }
+    }
 
+    [Flags]
+    public enum PropertyNotificationTypes {
+        None = 0x00,
+        PropertyChanged = 0x01,
+        PropertyChanging = 0x02,
+        Both = PropertyChanged | PropertyChanging
     }
 }

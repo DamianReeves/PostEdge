@@ -51,4 +51,14 @@ namespace PostEdge.Weaver {
             }
         }
     }
+
+    internal sealed class GuardPropertyEqualityTransformationContext : IPropertyTransformationContext {
+        public GuardPropertyEqualityTransformationContext(PropertyDeclaration property) {
+            if (property == null) throw new ArgumentNullException("property");
+            Property = property;
+        }
+
+        public PropertyDeclaration Property { get; private set; }
+        public ModuleDeclaration Module { get { return Property.Module; } }
+    }
 }
