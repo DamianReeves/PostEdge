@@ -1,11 +1,10 @@
-using System;
 using System.ComponentModel.Composition;
 using PostSharp.Aspects.Configuration;
 using PostSharp.Extensibility;
 using PostSharp.Sdk.AspectWeaver;
 using PostSharp.Sdk.AspectWeaver.Transformations;
 
-namespace OZCAP.Common.PostSharp.Weaver.Core {
+namespace PostEdge.Weaver.Internal {
     internal abstract class ComposedAdviceWeaver : AdviceWeaver {
         protected ComposedAdviceWeaver() {
             CompositionInitializer.SatisfyImports(this);    

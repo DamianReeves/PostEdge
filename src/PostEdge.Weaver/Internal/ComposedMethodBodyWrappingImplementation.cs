@@ -19,7 +19,9 @@ namespace PostEdge.Weaver.Internal {
         }
 
         [Import]
-        public Lazy<ExportFactory<IMethodBodyOnEntryStrategy>, IMethodBodyWrappingStrategyMetadata>[] OnEntryImplementations { get; private set; }
+        public Lazy<ExportFactory<IMethodBodyOnEntryImplementation>, IMethodBodyWrappingImplementationMetadata>[] OnEntryImplementations { get; private set; }
+        [Import]
+        public Lazy<ExportFactory<IMethodBodyOnSuccessImplementation>, IMethodBodyWrappingImplementationMetadata>[] OnSuccessImplementations { get; private set; }
 
         public MethodBodyWrappingImplementationContext WrappingImplementationContext {
             get { return _wrappingImplementationContext; }
@@ -57,7 +59,16 @@ namespace PostEdge.Weaver.Internal {
             }
         }
 
-        protected virtual IEnumerable<ExportFactory<IMethodBodyOnEntryStrategy>> GetOnEntryImplementations() {
+        protected virtual IEnumerable<ExportFactory<IMethodBodyOnEntryImplementation>> GetOnEntryImplementations() {
+            var transformation = WrappingImplementationContext.Transformation;
+            return
+                from impl in OnEntryImplementations
+                where impl.Metadata.Transformation == transformation
+                orderby impl.Metadata.Priority
+                select impl.Value;
+        }
+
+        protected virtual IEnumerable<ExportFactory<IMethodBodyOnSuccessImplementation>> GetOnSuccessImplementations() {
             var transformation = WrappingImplementationContext.Transformation;
             return
                 from impl in OnEntryImplementations

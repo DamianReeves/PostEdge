@@ -3,27 +3,27 @@ using PostSharp.Sdk.CodeModel;
 
 namespace PostEdge.Weaver.Internal {
     internal interface IMethodBodyWrappingStrategy :
-        IMethodBodyOnEntryStrategy, IMethodBodyOnSuccessStrategy
-        , IMethodBodyOnExitStrategy, IMethodBodyOnExceptionStrategy {        
+        IMethodBodyOnEntryImplementation, IMethodBodyOnSuccessImplementation
+        , IMethodBodyOnExitImplementation, IMethodBodyOnExceptionImplementation {        
     }
 
-    internal interface IMethodBodyOnEntryStrategy {
+    internal interface IMethodBodyOnEntryImplementation {
         void ImplementOnEntry(InstructionBlock block, InstructionWriter writer);
     }
 
-    internal interface IMethodBodyOnSuccessStrategy {
+    internal interface IMethodBodyOnSuccessImplementation {
         void ImplementOnSuccess(InstructionBlock block, InstructionWriter writer);
     }
 
-    internal interface IMethodBodyOnExitStrategy {
+    internal interface IMethodBodyOnExitImplementation {
         void ImplementOnExit(InstructionBlock block, InstructionWriter writer);
     }
 
-    internal interface IMethodBodyOnExceptionStrategy {
+    internal interface IMethodBodyOnExceptionImplementation {
         void ImplementOnException(InstructionBlock block, ITypeSignature exceptionType, InstructionWriter writer);
     }
 
-    internal interface IMethodBodyWrappingStrategyMetadata {
+    internal interface IMethodBodyWrappingImplementationMetadata {
         string Transformation { get; }
         //MethodBodyWrappingImplementationType ImplementationType { get; }
         int Priority { get; }
