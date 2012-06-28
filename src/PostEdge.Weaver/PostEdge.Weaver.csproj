@@ -56,6 +56,9 @@
     <Compile Include="Extensions\CodeWriterExtensions.cs" />
     <Compile Include="Extensions\InstructionBlockExtensions.cs" />
     <Compile Include="CodeModel\MethodBodyInstructionVisitor.cs" />
+    <Compile Include="Internal\IMethodBodyWrappingStrategy.cs" />
+    <Compile Include="Internal\ComposedMethodBodyWrappingImplementation.cs" />
+    <Compile Include="Internal\MethodBodyWrappingImplementationContext.cs" />
     <Compile Include="Mef\Microsoft\ComponentModel\Composition\Hosting\ConcurrentCacheOfTKeyTValue.cs" />
     <Compile Include="Mef\Microsoft\ComponentModel\Composition\Hosting\ExportFactoryImport.cs" />
     <Compile Include="Mef\Microsoft\ComponentModel\Composition\Hosting\ExportFactoryInstantiationProvider.cs" />
@@ -110,6 +113,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Mef\Strings.resx" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\nuget.targets" />
   <Import Project="..\packages\PostSharp.2.1.7.1\tools\PostSharp.targets" />
