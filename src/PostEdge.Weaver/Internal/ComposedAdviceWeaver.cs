@@ -7,58 +7,68 @@ using PostSharp.Sdk.AspectWeaver.Transformations;
 namespace PostEdge.Weaver.Internal {
     internal abstract class ComposedAdviceWeaver : AdviceWeaver {
         protected ComposedAdviceWeaver() {
-            CompositionInitializer.SatisfyImports(this);    
+            CompositionInitializer.SatisfyImports(this);
         }
-        
+
     }
     internal abstract class ComposedAspectWeaver : AspectWeaver {
-        protected ComposedAspectWeaver(AspectConfigurationAttribute defaultConfiguration, ReflectionObjectBuilder reflectionObjectBuilder, MulticastTargets validTargets) 
+        protected ComposedAspectWeaver(AspectConfigurationAttribute defaultConfiguration, ReflectionObjectBuilder reflectionObjectBuilder, MulticastTargets validTargets)
             : base(defaultConfiguration, reflectionObjectBuilder, validTargets) {
-                CompositionInitializer.SatisfyImports(this);
-        } 
-    }
-
-    internal abstract class ComposedAdviceGroup:AdviceGroup{
-        protected ComposedAdviceGroup(AdviceWeaver parent) : base(parent) {
             CompositionInitializer.SatisfyImports(this);
         }
     }
 
-    internal abstract class ComposedAspectWeaverInstance<TAspectWeaver>:AspectWeaverInstance 
-        where TAspectWeaver:ComposedAspectWeaver {
-        protected ComposedAspectWeaverInstance(TAspectWeaver aspectWeaver, AspectInstanceInfo aspectInstanceInfo) 
+    internal abstract class ComposedAdviceGroup : AdviceGroup {
+        protected ComposedAdviceGroup(AdviceWeaver parent)
+            : base(parent) {
+            CompositionInitializer.SatisfyImports(this);
+        }
+    }
+
+    internal abstract class ComposedAdviceGroup<TAdviceWeaver> : ComposedAdviceGroup
+        where TAdviceWeaver : AdviceWeaver {
+        protected ComposedAdviceGroup(TAdviceWeaver parent)
+            : base(parent) {
+        }
+
+        public new TAdviceWeaver AdviceWeaver { get { return (TAdviceWeaver)base.AdviceWeaver; } }
+    }
+
+    internal abstract class ComposedAspectWeaverInstance<TAspectWeaver> : AspectWeaverInstance
+        where TAspectWeaver : ComposedAspectWeaver {
+        protected ComposedAspectWeaverInstance(TAspectWeaver aspectWeaver, AspectInstanceInfo aspectInstanceInfo)
             : base(aspectWeaver, aspectInstanceInfo) {
-                CompositionInitializer.SatisfyImports(this);
+            CompositionInitializer.SatisfyImports(this);
         }
 
         public new TAspectWeaver AspectWeaver {
-            get { return (TAspectWeaver) base.AspectWeaver; }
+            get { return (TAspectWeaver)base.AspectWeaver; }
         }
     }
 
     internal abstract class ComposedMethodBodyTransformation : MethodBodyTransformation {
-        protected ComposedMethodBodyTransformation(AspectWeaver aspectWeaver) 
+        protected ComposedMethodBodyTransformation(AspectWeaver aspectWeaver)
             : base(aspectWeaver) {
-                CompositionInitializer.SatisfyImports(this);
+            CompositionInitializer.SatisfyImports(this);
         }
     }
 
-    internal abstract class ComposedMethodBodyTransformationInstance:MethodBodyTransformationInstance {
-        protected ComposedMethodBodyTransformationInstance(MethodBodyTransformation parent, AspectWeaverInstance aspectWeaverInstance) 
+    internal abstract class ComposedMethodBodyTransformationInstance : MethodBodyTransformationInstance {
+        protected ComposedMethodBodyTransformationInstance(MethodBodyTransformation parent, AspectWeaverInstance aspectWeaverInstance)
             : base(parent, aspectWeaverInstance) {
             CompositionInitializer.SatisfyImports(this);
         }
     }
 
-    internal abstract class ComposedStructuralTransformation: StructuralTransformation {
-        protected ComposedStructuralTransformation(AspectWeaver aspectWeaver) 
+    internal abstract class ComposedStructuralTransformation : StructuralTransformation {
+        protected ComposedStructuralTransformation(AspectWeaver aspectWeaver)
             : base(aspectWeaver) {
             CompositionInitializer.SatisfyImports(this);
         }
     }
 
     internal abstract class ComposedStructuralTransformationInstance : StructuralTransformationInstance {
-        protected ComposedStructuralTransformationInstance(StructuralTransformation parent, AspectWeaverInstance aspectWeaverInstance) 
+        protected ComposedStructuralTransformationInstance(StructuralTransformation parent, AspectWeaverInstance aspectWeaverInstance)
             : base(parent, aspectWeaverInstance) {
             CompositionInitializer.SatisfyImports(this);
         }

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003"> 
+  <PropertyGroup>
+    <ILMergePlatform 
+      Condition="Exists('$(ProgramFiles)\Reference Assemblies\Microsoft\Framework')"
+      >v4,&quot;$(ProgramFiles)\Reference Assemblies\Microsoft\Framework&quot;</ILMergePlatform>
+    <ILMergePlatform 
+      Condition="$(ILMergePlatform)=='' AND EXISTS('$(windir)\Microsoft.NET\Framework\v4.0.30319')"
+      >v4,&quot;$(windir)\Microsoft.NET\Framework\v4.0.30319&quot;</ILMergePlatform>
+    <ILMergePlatform Condition="$(ILMergePlatform)==''">v4</ILMergePlatform>
+  </PropertyGroup>
+   
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />     
+  <Target Name="AfterBuild">     
+    <CreateItem 
+      Include="@(ReferencePath)" 
+      Condition="'%(CopyLocal)'=='true' and '%(ReferencePath.IlMerge)'=='true'">     
+      <Output TaskParameter="Include" ItemName="IlmergeAssemblies"/>     
+    </CreateItem>     
+    <Message Text="MERGING: @(IlmergeAssemblies->'%(Filename)')" Importance="High" />     
+    <Exec Command="&quot;$(MSBuildThisFileDirectory)Ilmerge.exe&quot; /log:&quot;@(MainAssembly).ilmerge.log&quot; /targetplatform:$(ILMergePlatform) /internalize /out:@(MainAssembly) &quot;$(MSBuildProjectDirectory)\@(IntermediateAssembly)&quot; @(IlmergeAssemblies->'&quot;%(FullPath)&quot;', ' ')" />   
+  </Target>     
+  <Target Name="AfterResolveReferences">
+    <Message Text="Filtering out ilmerge assemblies from ReferenceCopyLocalPaths" Importance="High" />
+    <ItemGroup>
+        <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.IlMerge)'=='true'" />
+    </ItemGroup>
+  </Target>
+</Project>

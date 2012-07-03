@@ -8,31 +8,33 @@ using PostSharp.Sdk.CodeModel;
 
 namespace PostEdge.Weaver.Internal {
 
-    internal abstract class ComposedMethodBodyWrappingImplementation:MethodBodyWrappingImplementation {
-        private readonly MethodBodyWrappingImplementationContext _wrappingImplementationContext;
+    internal abstract class ComposedMethodBodyWrappingImplementation : MethodBodyWrappingImplementation {
+        private readonly MethodBodyWrappingImplementationOptions _wrappingImplementationOptions;
 
-        protected ComposedMethodBodyWrappingImplementation(MethodBodyWrappingImplementationContext wrappingImplementationContext, AspectInfrastructureTask task, MethodBodyTransformationContext context) 
+        protected ComposedMethodBodyWrappingImplementation(MethodBodyWrappingImplementationOptions wrappingImplementationOptions, AspectInfrastructureTask task, MethodBodyTransformationContext context)
             : base(task, context) {
-            if (wrappingImplementationContext == null) throw new ArgumentNullException("wrappingImplementationContext");
-            _wrappingImplementationContext = wrappingImplementationContext;
-            CompositionInitializer.SatisfyImports(this);
+            if (wrappingImplementationOptions == null) throw new ArgumentNullException("wrappingImplementationOptions");
+            _wrappingImplementationOptions = wrappingImplementationOptions;
+            try {
+                CompositionInitializer.SatisfyImports(this);
+            } catch (Exception ex) {
+                throw;
+            }
         }
 
-        [Import]
-        public Lazy<ExportFactory<IMethodBodyOnEntryImplementation>, IMethodBodyWrappingImplementationMetadata>[] OnEntryImplementations { get; private set; }
-        [Import]
-        public Lazy<ExportFactory<IMethodBodyOnSuccessImplementation>, IMethodBodyWrappingImplementationMetadata>[] OnSuccessImplementations { get; private set; }
+        [ImportMany]
+        public ExportFactory<IMethodBodyOnEntryImplementation, IMethodBodyWrappingImplementationMetadata>[] OnEntryImplementations { get; private set; }
 
-        public MethodBodyWrappingImplementationContext WrappingImplementationContext {
-            get { return _wrappingImplementationContext; }
+        public MethodBodyWrappingImplementationOptions WrappingImplementationOptions {
+            get { return _wrappingImplementationOptions; }
         }
 
         protected override void ImplementOnException(InstructionBlock block, ITypeSignature exceptionType, InstructionWriter writer) {
-            
+
         }
 
         protected override void ImplementOnExit(InstructionBlock block, InstructionWriter writer) {
-            
+
         }
 
         protected override void ImplementOnSuccess(InstructionBlock block, InstructionWriter writer) {
@@ -42,14 +44,15 @@ namespace PostEdge.Weaver.Internal {
         protected override void ImplementOnEntry(InstructionBlock block, InstructionWriter writer) {
             foreach (var implementation in GetOnEntryImplementations()) {
                 using (var factory = implementation.CreateExport()) {
-                    var strategy = factory.Value;
-                    strategy.ImplementOnEntry(block,writer);
+                    var instance = factory.Value;
+                    instance.Initialize(Context);
+                    instance.ImplementOnEntry(block, writer);
                 }
             }
         }
 
         public virtual void Execute() {
-            var ctx = WrappingImplementationContext;
+            var ctx = WrappingImplementationOptions;
             //Implement this
             Implement(ctx.ImplementOnEntry, ctx.ImplementOnSuccess, ctx.ImplementOnExit
                 , ctx.ImplementOnException ? ctx.ExceptionTypes : null);
@@ -59,27 +62,14 @@ namespace PostEdge.Weaver.Internal {
             }
         }
 
-        protected virtual IEnumerable<ExportFactory<IMethodBodyOnEntryImplementation>> GetOnEntryImplementations() {
-            var transformation = WrappingImplementationContext.Transformation;
+        protected virtual IEnumerable<ExportFactory<IMethodBodyOnEntryImplementation, IMethodBodyWrappingImplementationMetadata>> GetOnEntryImplementations() {
+            var transformation = WrappingImplementationOptions.Transformation;
             return
                 from impl in OnEntryImplementations
-                where impl.Metadata.Transformation == transformation
+                where impl.Metadata.Transformations != null
+                && impl.Metadata.Transformations.Contains(transformation)
                 orderby impl.Metadata.Priority
-                select impl.Value;
+                select impl;
         }
-
-        protected virtual IEnumerable<ExportFactory<IMethodBodyOnSuccessImplementation>> GetOnSuccessImplementations() {
-            var transformation = WrappingImplementationContext.Transformation;
-            return
-                from impl in OnEntryImplementations
-                where impl.Metadata.Transformation == transformation
-                orderby impl.Metadata.Priority
-                select impl.Value;
-        }
-
-    }
-
-    internal abstract class MethodBodyWrappingStrategyChain {
-        protected abstract IEnumerable<IMethodBodyWrappingStrategy> GetStrategies();
     }
 }

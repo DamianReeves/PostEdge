@@ -1,21 +1,22 @@
-using System;
+﻿using System;
 using PostSharp.Sdk.CodeModel;
 
 namespace PostEdge.Weaver.Internal {
-    internal class MethodBodyWrappingImplementationContext {
+    public class MethodBodyWrappingImplementationOptions {
         private readonly ITypeSignature[] _exceptionTypes;
         private readonly string _transformation;
         private readonly MethodBodyWrappingImplementationType _wrappingImplementationType;
 
-        public MethodBodyWrappingImplementationContext(string transformation, MethodBodyWrappingImplementationType wrappingImplementationType) {
+        public MethodBodyWrappingImplementationOptions(string transformation, MethodBodyWrappingImplementationType wrappingImplementationType) {
             if (transformation == null) throw new ArgumentNullException("transformation");
             _transformation = transformation;
             _wrappingImplementationType = wrappingImplementationType;
         }
 
-        public MethodBodyWrappingImplementationContext(string transformation, MethodBodyWrappingImplementationType wrappingImplementationType, ITypeSignature[] exceptionTypes) {
+        public MethodBodyWrappingImplementationOptions(string transformation, MethodBodyWrappingImplementationType wrappingImplementationType, ITypeSignature[] exceptionTypes) {
             if (transformation == null) throw new ArgumentNullException("transformation");
             _transformation = transformation;
+            _wrappingImplementationType = wrappingImplementationType;
             _exceptionTypes = exceptionTypes;
         }
 
