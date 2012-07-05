@@ -14,7 +14,6 @@ namespace PostEdge.Weaver {
             this.BindAdviceWeaver<EnhancePropertySetterAttribute, EnhancePropertySetterAdviceWeaver>();
             this.BindAspectWeaver<INotifyPropertyChangedAspect, NotifyPropertyChangedAspectWeaver>();
             this.BindAspectWeaver<IGuardPropertyEqualityAspect,GuardPropertyEqualityAspectWeaver>();
-            var builder = new Autofac.ContainerBuilder();
         }
     }
 }
